@@ -15,13 +15,14 @@ OrbiterAudioProcessor::OrbiterAudioProcessor()
      : AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
                       #if ! JucePlugin_IsSynth
-                       .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
+                       .withInput  ("Input",  juce::AudioChannelSet::mono(), true)
                       #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
                        )
 #endif
 {
+
 }
 
 OrbiterAudioProcessor::~OrbiterAudioProcessor()
@@ -153,6 +154,8 @@ void OrbiterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         auto* channelData = buffer.getWritePointer (channel);
 
         // ..do something to the data...
+        juce::SpinLock::ScopedTryLockType sLock(myLock);
+        
     }
 }
 
