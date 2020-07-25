@@ -73,6 +73,9 @@ public:
     HRTFProcessorTest() : UnitTest("HRTFProcessorUnitTest", "HRTFProcessor") {};
     
     void runTest() override;
+    
+private:
+    bool createTestSignal(float fs, float f0, std::vector<float> &dest);
 };
 
 static HRTFProcessorTest hrtfProcessorUnitTest;
