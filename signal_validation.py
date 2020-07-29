@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 import h5py
 import soundfile as sf
 
-#%matplotlib qt
+%matplotlib qt
 
+#%%
 def createFadeInOutEnvelope(length, fadeInOut):
 	envelope = np.zeros(length)
 
@@ -28,7 +29,7 @@ def overlapAndAdd(olaBuffer, x, writeIndex, numSamplesToWrite):
 
 		if ola_index >= buffer_size:
 			ola_index = 0
-			
+
 		olaBuffer[ola_index] += x[x_index]
 		x_index += 1
 		ola_index += 1
@@ -117,7 +118,7 @@ EPos = f['EmitterPosition']
 Azimuth = f['SourcePosition']
 HRIR = f['Data.IR']
 
-hrir_index = 45
+hrir_index = 54
 
 hrir_left = HRIR[hrir_index, 0, :]
 hrir_right = HRIR[hrir_index, 1, :]
@@ -130,10 +131,14 @@ test_signal = np.sin(np.arange(0, num_samples, 1) * 2 * np.pi * 1000 / 44100)
 output = np.zeros((2,num_samples + N))
 
 num_blocks = int(num_samples / audio_block_length)
+ola_index = 0
 
 for block in range(0, num_blocks):
+	print(block)
+
 	x = np.zeros(N)
 	h_left = np.zeros(N)
+	h_right = np.zeros(N)
 
 	x[0 : audio_block_length] = test_signal[block * audio_block_length : (block * audio_block_length) + audio_block_length]
 	h_left[0 : M] = hrir_left[0 : M]
@@ -142,10 +147,24 @@ for block in range(0, num_blocks):
 	y_left = np.fft.ifft(np.fft.fft(x, N) * np.fft.fft(h_left, N))
 	y_right = np.fft.ifft(np.fft.fft(x, N) * np.fft.fft(h_right, N))
 
-	
+	for i in range(ola_index, ola_index + audio_block_length):
+		ola[0][i] = 0
+		ola[1][i] = 0
+
+	ola_index += audio_block_length
+
+	if ola_index >= N:
+		ola_index = 0
+
+	ola[0] = overlapAndAdd(ola[0], y_left, ola_index, N)
+	ola[1] = overlapAndAdd(ola[1], y_right, ola_index, N)
+
+	output[0][block * audio_block_length : (block * audio_block_length) + audio_block_length] = ola[0][ola_index : ola_index + audio_block_length]
+	output[1][block * audio_block_length : (block * audio_block_length) + audio_block_length] = ola[1][ola_index : ola_index + audio_block_length]
 
 
 
+sf.write('/Users/superkittens/projects/juce_projects/Orbiter/validation.wav', output.T, 44100)
 
 
 
