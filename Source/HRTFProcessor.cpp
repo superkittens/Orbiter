@@ -17,23 +17,23 @@ HRTFProcessor::HRTFProcessor()
     hrirLoaded = false;
 }
 
-HRTFProcessor::HRTFProcessor(const std::vector<float> &hrir, float samplingFreq, size_t audioBufferSize)
+HRTFProcessor::HRTFProcessor(const double *hrir, size_t hrirSize, float samplingFreq, size_t audioBufferSize)
 {
     olaWriteIndex = 0;
     hrirChanged = false;
     hrirLoaded = false;
     
-    if (!init(hrir, fs, audioBufferSize))
+    if (!init(hrir, hrirSize, fs, audioBufferSize))
         hrirLoaded = false;
 }
 
 
-bool HRTFProcessor::init(const std::vector<float> &hrir, float samplingFreq, size_t audioBufferSize)
+bool HRTFProcessor::init(const double *hrir, size_t hrirSize, float samplingFreq, size_t audioBufferSize)
 {
     if (hrirLoaded)
         return false;
     
-    if (hrir.size() <= 0 || fs <= 0.0 || audioBufferSize <= 1)
+    if (hrirSize <= 0 || samplingFreq <= 0.0 || audioBufferSize <= 1)
         return false;
     
     auto audioBufferSizeCopy = audioBufferSize;
@@ -52,7 +52,7 @@ bool HRTFProcessor::init(const std::vector<float> &hrir, float samplingFreq, siz
     audioBlockSize = audioBufferSize;
     
     //  Calculate buffer sizes and initialize them
-    auto bufferPower = calculateNextPowerOfTwo(hrir.size() + audioBlockSize);
+    auto bufferPower = calculateNextPowerOfTwo(hrirSize + audioBlockSize);
     zeroPaddedBufferSize = pow(2, bufferPower);
     
     fftEngine.reset(new juce::dsp::FFT(bufferPower));
@@ -77,7 +77,7 @@ bool HRTFProcessor::init(const std::vector<float> &hrir, float samplingFreq, siz
     std::fill(xBuffer.begin(), xBuffer.end(), std::complex<float>(0.0, 0.0));
     
     //  Transform HRIR into HRTF
-    if (!setupHRTF(hrir))
+    if (!setupHRTF(hrir, hrirSize))
         return false;
     
     for (auto i = 0; i < audioBlockSize; ++i)
@@ -92,12 +92,12 @@ bool HRTFProcessor::init(const std::vector<float> &hrir, float samplingFreq, siz
 }
 
 
-bool HRTFProcessor::swapHRIR(const std::vector<float> &hrir)
+bool HRTFProcessor::swapHRIR(const double *hrir, size_t hrirSize)
 {
-    if (!hrirLoaded || hrir.size() <= 0)
+    if (!hrirLoaded || hrirSize <= 0)
         return false;
     
-    bool success = setupHRTF(hrir);
+    bool success = setupHRTF(hrir, hrirSize);
     if (!success)
         return false;
     
@@ -118,7 +118,10 @@ const float* HRTFProcessor::calculateOutput(const std::vector<float> &x)
     if (!hrirLoaded || x.size() == 0)
         return nullptr;
     
-    std::fill(olaBuffer.begin() + olaWriteIndex, olaBuffer.begin() + olaWriteIndex + audioBlockSize - 1, 0.0);
+    if (x.size() != audioBlockSize)
+        return nullptr;
+    
+    std::fill(olaBuffer.begin() + olaWriteIndex, olaBuffer.begin() + olaWriteIndex + audioBlockSize, 0.0);
     
     olaWriteIndex += audioBlockSize;
     if (olaWriteIndex >= zeroPaddedBufferSize)
@@ -155,9 +158,9 @@ const float* HRTFProcessor::calculateOutput(const std::vector<float> &x)
 }
 
 
-bool HRTFProcessor::setupHRTF(const std::vector<float> &hrir)
+bool HRTFProcessor::setupHRTF(const double *hrir, size_t hrirSize)
 {
-    if (hrir.size() == 0 || hrir.size() > zeroPaddedBufferSize)
+    if (hrirSize == 0 || hrirSize > zeroPaddedBufferSize)
         return false;
     
     if (fftEngine.get() == nullptr)
@@ -167,12 +170,12 @@ bool HRTFProcessor::setupHRTF(const std::vector<float> &hrir)
     juce::SpinLock::ScopedLockType scopedLock(hrirChangingLock);
     
     std::fill(auxHRTFBuffer.begin(), auxHRTFBuffer.end(), std::complex<float>(0.0, 0.0));
-    for (auto i = 0; i < hrir.size(); ++i)
+    for (auto i = 0; i < hrirSize; ++i)
     {
         if (!hrirLoaded)
-            activeHRTF.at(i) = std::complex<float>(hrir.at(i), 0.0);
+            activeHRTF.at(i) = std::complex<float>((float)hrir[i], 0.0);
         else
-            auxHRTFBuffer.at(i) = std::complex<float>(hrir.at(i), 0.0);
+            auxHRTFBuffer.at(i) = std::complex<float>((float)hrir[i], 0.0);
     }
     
     if (!hrirLoaded)
@@ -268,6 +271,7 @@ unsigned int HRTFProcessor::calculateNextPowerOfTwo(float x)
 
 
 
+#ifdef JUCE_UNIT_TESTS
 void HRTFProcessorTest::runTest()
 {
     HRTFProcessor processor;
@@ -275,7 +279,7 @@ void HRTFProcessorTest::runTest()
     //  Input an impulse to the HRTFProcessor
     //  HRTF should be a constant (1)
     size_t fftSize = 512;
-    std::vector<float> hrir(fftSize);
+    std::vector<double> hrir(fftSize);
     std::fill(hrir.begin(), hrir.end(), 0.0);
     hrir[(fftSize / 2) - 1] = 1.0;
     
@@ -284,7 +288,7 @@ void HRTFProcessorTest::runTest()
     
     beginTest("HRTFProcessor Initialization");
     
-    bool success = processor.init(hrir, samplingFreq, audioBufferSize);
+    bool success = processor.init(hrir.data(), hrir.size(), samplingFreq, audioBufferSize);
     expect(success);
     
     expectEquals<int>(processor.isHRIRLoaded(), 1);
@@ -308,11 +312,10 @@ void HRTFProcessorTest::runTest()
     
     expect(output != nullptr ?  true : false);
     
-    for (auto i = 0; i < audioBufferSize; ++i)
-    {
-        //std::cout << i << ": ";
-        //std::cout << output[i] << std::endl;
-    }
+//    std::cout << "------------------" << std::endl;
+//
+//    for (auto i = 0; i < audioBufferSize; ++i)
+//        std::cout << output[i] << std::endl;
     
     //===================================================================================================//
     
@@ -320,7 +323,7 @@ void HRTFProcessorTest::runTest()
     beginTest("Changing HRTF");
     
     std::fill(hrir.begin(), hrir.end(), 1.0);
-    expect(processor.swapHRIR(hrir));
+    expect(processor.swapHRIR(hrir.data(), hrir.size()));
     
     std::vector<float> signal(2048);
     createTestSignal(44100, 500, signal);
@@ -329,13 +332,41 @@ void HRTFProcessorTest::runTest()
     
     expect(output != nullptr ? true : false);
     
+//    std::cout << "==================" << std::endl;
+//
+//    for (auto i = 0; i < processor.zeroPaddedBufferSize; ++i)
+//        std::cout << processor.olaBuffer[i] << std::endl;
+    
+    
+    //===================================================================================================//
+    
+    
+    beginTest("Regular Operation");
+    size_t numTestSignalPoints = 2048;
+    float freq = 1000;
+    std::vector<float> testSignal(numTestSignalPoints);
+    
+    expect(createTestSignal(samplingFreq, freq, testSignal));
+    
+    std::fill(hrir.begin(), hrir.end(), 0.0);
+    hrir[0] = 1.0;
+    
+    HRTFProcessor regularProcesor;
+    expect(regularProcesor.init(hrir.data(), hrir.size(), samplingFreq, audioBufferSize));
+
+    for (auto block = 0; block < 3; ++block)
+    {
+        std::vector<float> audioBlock(audioBufferSize);
+        for (auto i = 0; i < audioBufferSize; ++i)
+            audioBlock[i] = testSignal[block * audioBufferSize + i];
+        
+        regularProcesor.calculateOutput(audioBlock);
+    }
+    
     std::cout << "==================" << std::endl;
     
     for (auto i = 0; i < processor.zeroPaddedBufferSize; ++i)
-    {
-        //std::cout << i << ": ";
-        std::cout << processor.olaBuffer[i] << std::endl;
-    }
+        std::cout << regularProcesor.olaBuffer[i] << std::endl;
 }
 
 
@@ -349,3 +380,5 @@ bool HRTFProcessorTest::createTestSignal(float fs, float f0, std::vector<float> 
     
     return true;
 }
+
+#endif

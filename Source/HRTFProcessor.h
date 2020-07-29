@@ -23,35 +23,37 @@ class HRTFProcessor
 public:
     
     HRTFProcessor();
-    HRTFProcessor(const std::vector<float> &hrir, float samplingFreq, size_t audioBufferSize);
+    HRTFProcessor(const double *hrir, size_t hrirSize, float samplingFreq, size_t audioBufferSize);
     
-    bool            init(const std::vector<float> &hrir, float samplingFreq, size_t audioBufferSize);
-    bool            swapHRIR(const std::vector<float> &hrir);
+    bool            init(const double *hrir, size_t hrirSize, float samplingFreq, size_t audioBufferSize);
+    bool            swapHRIR(const double *hrir, size_t hrirSize);
     const float*    calculateOutput(const std::vector<float> &x);
     //bool            getFadedOutput(std::vector<float> &dest, bool fadeInOut = true);
     bool            copyOLABuffer(std::vector<float> &dest, size_t numSamplesToCopy);
     bool            isHRIRLoaded() { return hrirLoaded; }
     
+    
+    
 protected:
     
-    bool            setupHRTF(const std::vector<float> &hrir);
+    bool            setupHRTF(const double *hrir, size_t hrirSize);
     bool            overlapAndAdd();
     bool            crossfadeWithNewHRTF(const std::vector<float> &x);
     unsigned int    calculateNextPowerOfTwo(float x);
     
     double          fs;
     
-    std::vector<float>                              olaBuffer;
     std::vector<float>                              shadowOLABuffer;
     std::vector<std::complex<float>>                activeHRTF;
     std::vector<std::complex<float>>                auxHRTFBuffer;
     std::vector<std::complex<float>>                xBuffer;
+    std::vector<float>                              olaBuffer;
     std::vector<std::complex<float>>                auxBuffer;
     size_t                                          audioBlockSize;
-    size_t                                          zeroPaddedBufferSize;
+
     bool                                            hrirChanged;
     size_t                                          olaWriteIndex;
-    
+    size_t                                          zeroPaddedBufferSize;
     std::vector<float>                              fadeInEnvelope;
     std::vector<float>                              fadeOutEnvelope;
     
@@ -66,7 +68,7 @@ protected:
 };
 
 
-
+#ifdef JUCE_UNIT_TESTS
 class HRTFProcessorTest : public juce::UnitTest
 {
 public:
@@ -79,3 +81,5 @@ private:
 };
 
 static HRTFProcessorTest hrtfProcessorUnitTest;
+
+#endif

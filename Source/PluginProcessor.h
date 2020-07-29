@@ -9,6 +9,9 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <BasicSOFA.hpp>
+#include "HRTFProcessor.h"
+
 
 //==============================================================================
 /**
@@ -55,7 +58,13 @@ public:
 
 private:
     //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrbiterAudioProcessor)
     
-    juce::SpinLock myLock;
+    BasicSOFA::BasicSOFA sofa;
+    bool sofaFileLoaded;
+    const juce::String defaultSOFAFilePath = "/Users/superkittens/projects/sound_prototypes/hrtf/hrtfs/BRIRs_from_a_room/B/002.sofa";
+    
+    HRTFProcessor leftHRTFProcessor;
+    HRTFProcessor rightHRTFProcessor;
+    
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrbiterAudioProcessor)
 };

@@ -22,7 +22,9 @@ OrbiterAudioProcessor::OrbiterAudioProcessor()
                        )
 #endif
 {
-
+    bool success = sofa.readSOFAFile(defaultSOFAFilePath.toStdString());
+    if (success)
+        sofaFileLoaded = true;
 }
 
 OrbiterAudioProcessor::~OrbiterAudioProcessor()
@@ -94,8 +96,11 @@ void OrbiterAudioProcessor::changeProgramName (int index, const juce::String& ne
 //==============================================================================
 void OrbiterAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialisation that you need..
+    if (sofaFileLoaded)
+    {
+        leftHRTFProcessor.init(sofa.getHRIR(0, 90, 0, 0), 15000, (float)sampleRate, (size_t)samplesPerBlock / 2);
+        rightHRTFProcessor.init(sofa.getHRIR(1, 90, 0, 0), 15000, (float)sampleRate, (size_t)samplesPerBlock / 2);
+    }
 }
 
 void OrbiterAudioProcessor::releaseResources()
@@ -149,13 +154,39 @@ void OrbiterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     // the samples and the outer loop is handling the channels.
     // Alternatively, you can process the samples with the channels
     // interleaved by keeping the same state.
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
+    
+    for (int channel = 0; channel < 1; ++channel)
     {
-        auto* channelData = buffer.getWritePointer (channel);
+        auto *channelData = buffer.getWritePointer (channel);
 
         // ..do something to the data...
-        juce::SpinLock::ScopedTryLockType sLock(myLock);
+        //std::cout << "=================" << std::endl;
+        std::vector<float> data(buffer.getNumSamples());
+        for (int i = 0; i < buffer.getNumSamples(); ++i)
+        {
+            data[i] = channelData[i];
+            //std::cout << channelData[i] << std::endl;
+        }
         
+        
+        auto *left = leftHRTFProcessor.calculateOutput(data);
+        auto *right = rightHRTFProcessor.calculateOutput(data);
+        
+        if (left != nullptr || right != nullptr)
+        {
+            auto *outLeft = buffer.getWritePointer(0);
+            auto *outRight = buffer.getWritePointer(1);
+            
+            for (int i = 0; i < buffer.getNumSamples(); ++i)
+            {
+                outLeft[i] = left[i];
+                outRight[i] = right[i];
+            }
+
+//            std::cout << "=================" << std::endl;
+//            for (auto i = 0; i < 2000; ++i)
+//                std::cout << leftHRTFProcessor.xBuffer[i].real() << std::endl;
+        }
     }
 }
 
