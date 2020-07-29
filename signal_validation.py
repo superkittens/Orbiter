@@ -1,7 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import h5py
+import soundfile as sf
 
-%matplotlib qt
+#%matplotlib qt
 
 def createFadeInOutEnvelope(length, fadeInOut):
 	envelope = np.zeros(length)
@@ -19,11 +21,17 @@ def createFadeInOutEnvelope(length, fadeInOut):
 def overlapAndAdd(olaBuffer, x, writeIndex, numSamplesToWrite):
 
 	x_index = 0
+	ola_index = writeIndex
 	buffer_size = len(olaBuffer)
 
 	for i in range(writeIndex, writeIndex + numSamplesToWrite):
-		olaBuffer[i] += x[x_index]
+
+		if ola_index >= buffer_size:
+			ola_index = 0
+			
+		olaBuffer[ola_index] += x[x_index]
 		x_index += 1
+		ola_index += 1
 
 	return olaBuffer
 
@@ -34,27 +42,27 @@ def overlapAndAdd(olaBuffer, x, writeIndex, numSamplesToWrite):
 hrir_length = 512
 audio_block_length = 256
 zero_padded_exponent = int(np.log2(hrir_length + audio_block_length)) + 1
-zero_padded_length = np.power(2, zero_packed_exponent)
+zero_padded_length = np.power(2, zero_padded_exponent)
 
 
 hrir_impulse = np.zeros(hrir_length)
-hrir_impulse[int(hrir_length / 2) - 1] = 1.0
+hrir_impulse[0] = 1.0
 
 hrir_dc = np.ones(hrir_length)
 
 fade_out_envelope = createFadeInOutEnvelope(audio_block_length, fadeInOut='fade_out')
 fade_in_envelope = createFadeInOutEnvelope(audio_block_length, fadeInOut='fade_in')
 
-hrir_impulse_zp = np.zeros(zero_packed_length)
+hrir_impulse_zp = np.zeros(zero_padded_length)
 hrir_impulse_zp[0:hrir_length] = hrir_impulse
 
-hrir_dc_zp = np.zeros(zero_packed_length)
+hrir_dc_zp = np.zeros(zero_padded_length)
 hrir_dc_zp[0:hrir_length] = hrir_dc
 
-x = np.zeros(zero_packed_length)
+x = np.zeros(zero_padded_length)
 x[0] = 1.0
 
-ola_buffer = np.zeros(zero_packed_length)
+ola_buffer = np.zeros(zero_padded_length)
 
 
 #	This block corresponds to the "HRTF Appplication" test in HRTFProcessorTest
@@ -62,7 +70,7 @@ ola_buffer = np.zeros(zero_packed_length)
 #	The result from HRTFProessor and this script should match
 y = np.fft.ifft(np.fft.fft(x) * np.fft.fft(hrir_impulse_zp))
 
-ola_buffer = overlapAndAdd(ola_buffer, y, 0, zero_packed_length)
+ola_buffer = overlapAndAdd(ola_buffer, y, 0, zero_padded_length)
 
 
 #	This block corresponds to the "Changing HRTF" test
@@ -74,10 +82,67 @@ y_new[0:audio_block_length] = y_new[0:audio_block_length] * fade_in_envelope
 
 y = y_old + y_new
 
-ola_buffer = overlapAndAdd(ola_buffer, y, audio_block_length, zero_packed_length - audio_block_length)
+ola_buffer = overlapAndAdd(ola_buffer, y, audio_block_length, zero_padded_length - audio_block_length)
 
-plt.plot(ola_buffer)
 
+
+#	This block corresponds to "Regular Operation" test in HRTFProcessorTest
+#%%
+f0 = 1000
+fs = 44100
+
+x = np.sin(np.arange(0, 2048, 1) * 2 * np.pi * f0 / fs)
+
+ola_buffer = np.zeros(zero_padded_length)
+
+for block in range(0, 3):
+	x_zp = np.zeros(zero_padded_length)
+	x_zp[0 : audio_block_length] = x[block * audio_block_length : block * audio_block_length + audio_block_length]
+	
+	y = np.fft.ifft(np.fft.fft(x_zp) * np.fft.fft(hrir_impulse_zp))
+
+	ola_buffer = overlapAndAdd(ola_buffer, y, block * audio_block_length, zero_padded_length - (audio_block_length * block))
+
+
+
+#	Test using a real HRTF
+#%%
+sofa_filepath = '/Users/superkittens/projects/sound_prototypes/hrtf/hrtfs/BRIRs_from_a_room/B/002.sofa'
+
+f = h5py.File(sofa_filepath, 'r')
+
+Fs = f['Data.SamplingRate']
+Ns = int(np.size(f['N']))
+EPos = f['EmitterPosition']
+Azimuth = f['SourcePosition']
+HRIR = f['Data.IR']
+
+hrir_index = 45
+
+hrir_left = HRIR[hrir_index, 0, :]
+hrir_right = HRIR[hrir_index, 1, :]
+
+num_samples = 131072
+N = 16384
+M = 15000
+ola = np.zeros((2,N))
+test_signal = np.sin(np.arange(0, num_samples, 1) * 2 * np.pi * 1000 / 44100)
+output = np.zeros((2,num_samples + N))
+
+num_blocks = int(num_samples / audio_block_length)
+
+for block in range(0, num_blocks):
+	x = np.zeros(N)
+	h_left = np.zeros(N)
+
+	x[0 : audio_block_length] = test_signal[block * audio_block_length : (block * audio_block_length) + audio_block_length]
+	h_left[0 : M] = hrir_left[0 : M]
+	h_right[0 : M] = hrir_right[0 : M]
+
+	y_left = np.fft.ifft(np.fft.fft(x, N) * np.fft.fft(h_left, N))
+	y_right = np.fft.ifft(np.fft.fft(x, N) * np.fft.fft(h_right, N))
+
+	
 
 
 
