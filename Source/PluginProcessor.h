@@ -12,11 +12,14 @@
 #include <BasicSOFA.hpp>
 #include "HRTFProcessor.h"
 
+#define HRTF_THETA_ID "HRTF_THETA"
+#define HRTF_PHI_ID "HRTF_PHI"
+#define HRTF_RADIUS_ID "HRTF_RADIU"
 
 //==============================================================================
 /**
 */
-class OrbiterAudioProcessor  : public juce::AudioProcessor
+class OrbiterAudioProcessor  : public juce::AudioProcessor, public juce::Thread
 {
 public:
     //==============================================================================
@@ -55,16 +58,25 @@ public:
     //==============================================================================
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
+    
+    //==============================================================================
+    void run() override;
+    
+    BasicSOFA::BasicSOFA sofa;
+    bool sofaFileLoaded;
+    const juce::String defaultSOFAFilePath = "/Users/superkittens/projects/sound_prototypes/hrtf/hrtfs/BRIRs_from_a_room/A/002.sofa";
+    
+    HRTFProcessor leftHRTFProcessor;
+    HRTFProcessor rightHRTFProcessor;
+    
+    juce::AudioProcessorValueTreeState valueTreeState;
+    juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
 
 private:
     //==============================================================================
     
-    BasicSOFA::BasicSOFA sofa;
-    bool sofaFileLoaded;
-    const juce::String defaultSOFAFilePath = "/Users/superkittens/projects/sound_prototypes/hrtf/hrtfs/BRIRs_from_a_room/B/002.sofa";
-    
-    HRTFProcessor leftHRTFProcessor;
-    HRTFProcessor rightHRTFProcessor;
+    float prevTheta;
+    bool hrtfParamChangeLoop;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrbiterAudioProcessor)
 };

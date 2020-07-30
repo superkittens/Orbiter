@@ -19,16 +19,25 @@ OrbiterAudioProcessor::OrbiterAudioProcessor()
                       #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
-                       )
+                       ),
+                    Thread("HRTF Parameter Watcher"),
+                    valueTreeState(*this, nullptr, "PARAMETERS", createParameters())
 #endif
 {
     bool success = sofa.readSOFAFile(defaultSOFAFilePath.toStdString());
     if (success)
         sofaFileLoaded = true;
+    
+    prevTheta = 0;
+    hrtfParamChangeLoop = true;
+    
+    startThread();
 }
 
 OrbiterAudioProcessor::~OrbiterAudioProcessor()
 {
+    hrtfParamChangeLoop = false;
+    stopThread(4000);
 }
 
 //==============================================================================
@@ -139,6 +148,7 @@ void OrbiterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
+
     // In case we have more outputs than inputs, this code clears any output
     // channels that didn't contain input data, (because these aren't
     // guaranteed to be empty - they may contain garbage).
@@ -159,13 +169,10 @@ void OrbiterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     {
         auto *channelData = buffer.getWritePointer (channel);
 
-        // ..do something to the data...
-        //std::cout << "=================" << std::endl;
         std::vector<float> data(buffer.getNumSamples());
         for (int i = 0; i < buffer.getNumSamples(); ++i)
         {
             data[i] = channelData[i];
-            //std::cout << channelData[i] << std::endl;
         }
         
         
@@ -182,10 +189,6 @@ void OrbiterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
                 outLeft[i] = left[i];
                 outRight[i] = right[i];
             }
-
-//            std::cout << "=================" << std::endl;
-//            for (auto i = 0; i < 2000; ++i)
-//                std::cout << leftHRTFProcessor.xBuffer[i].real() << std::endl;
         }
     }
 }
@@ -213,6 +216,40 @@ void OrbiterAudioProcessor::setStateInformation (const void* data, int sizeInByt
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
+}
+
+
+juce::AudioProcessorValueTreeState::ParameterLayout OrbiterAudioProcessor::createParameters()
+{
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> parameters;
+    
+    parameters.push_back(std::make_unique<juce::AudioParameterInt>(HRTF_THETA_ID, "Theta", 0, 355, 0));
+    //parameters.push_back(std::make_unique<juce::AudioParameterBool>("ORBIT", "Enable Orbit", false));
+    return {parameters.begin(), parameters.end()};
+}
+
+
+void OrbiterAudioProcessor::run()
+{
+    while (hrtfParamChangeLoop)
+    {
+        auto *theta = valueTreeState.getRawParameterValue(HRTF_THETA_ID);
+
+        if (*theta != prevTheta)
+        {
+            auto *hrirLeft = sofa.getHRIR(0, *theta, 0, 0);
+            auto *hrirRight = sofa.getHRIR(1, *theta, 0, 0);
+            
+            if ((hrirLeft != nullptr) && (hrirRight != nullptr))
+            {
+                leftHRTFProcessor.swapHRIR(hrirLeft, 15000);
+                rightHRTFProcessor.swapHRIR(hrirRight, 15000);
+            }
+            prevTheta = *theta;
+        }
+
+        juce::Thread::wait(10);
+    }
 }
 
 //==============================================================================

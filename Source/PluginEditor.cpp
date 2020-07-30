@@ -16,6 +16,13 @@ OrbiterAudioProcessorEditor::OrbiterAudioProcessorEditor (OrbiterAudioProcessor&
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
     setSize (400, 300);
+    
+    hrtfThetaSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
+    hrtfThetaSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, true, 50, 10);
+    hrtfThetaSlider.setRange(0, 355, 5);
+    addAndMakeVisible(hrtfThetaSlider);
+    
+    hrtfThetaAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_THETA_ID, hrtfThetaSlider);
 }
 
 OrbiterAudioProcessorEditor::~OrbiterAudioProcessorEditor()
@@ -30,11 +37,12 @@ void OrbiterAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colours::white);
     g.setFont (15.0f);
-    g.drawFittedText ("Hello World!", getLocalBounds(), juce::Justification::centred, 1);
 }
 
 void OrbiterAudioProcessorEditor::resized()
 {
-    // This is generally where you'll want to lay out the positions of any
-    // subcomponents in your editor..
+    auto bounds = getLocalBounds();
+    const int componentSize = 100;
+    
+    hrtfThetaSlider.setBounds(bounds.removeFromTop(200).withSizeKeepingCentre(componentSize, componentSize));
 }
