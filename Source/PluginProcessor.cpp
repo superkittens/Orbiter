@@ -29,6 +29,8 @@ OrbiterAudioProcessor::OrbiterAudioProcessor()
         sofaFileLoaded = true;
     
     prevTheta = 0;
+    prevPhi = 0;
+    prevRadius = 0;
     hrtfParamChangeLoop = true;
     
     startThread();
@@ -107,8 +109,8 @@ void OrbiterAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
 {
     if (sofaFileLoaded)
     {
-        leftHRTFProcessor.init(sofa.getHRIR(0, 90, 0, 0), 15000, (float)sampleRate, (size_t)samplesPerBlock / 2);
-        rightHRTFProcessor.init(sofa.getHRIR(1, 90, 0, 0), 15000, (float)sampleRate, (size_t)samplesPerBlock / 2);
+        leftHRTFProcessor.init(sofa.getHRIR(0, 0, 0, 0), 15000, (float)sampleRate, (size_t)samplesPerBlock / 2);
+        rightHRTFProcessor.init(sofa.getHRIR(1, 0, 0, 0), 15000, (float)sampleRate, (size_t)samplesPerBlock / 2);
     }
 }
 
@@ -223,7 +225,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout OrbiterAudioProcessor::creat
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> parameters;
     
-    parameters.push_back(std::make_unique<juce::AudioParameterInt>(HRTF_THETA_ID, "Theta", 0, 355, 0));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_THETA_ID, "Theta", 0, 1, 0));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_PHI_ID, "Phi", 0, 1, 0));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_RADIUS_ID, "Radius", 0, 1, 0));
     //parameters.push_back(std::make_unique<juce::AudioParameterBool>("ORBIT", "Enable Orbit", false));
     return {parameters.begin(), parameters.end()};
 }
@@ -234,11 +238,17 @@ void OrbiterAudioProcessor::run()
     while (hrtfParamChangeLoop)
     {
         auto *theta = valueTreeState.getRawParameterValue(HRTF_THETA_ID);
+        auto *phi = valueTreeState.getRawParameterValue(HRTF_PHI_ID);
+        auto *radius = valueTreeState.getRawParameterValue(HRTF_RADIUS_ID);
 
-        if (*theta != prevTheta)
+        if ((*theta != prevTheta) || (*phi != prevTheta) || (*radius != prevRadius))
         {
-            auto *hrirLeft = sofa.getHRIR(0, *theta, 0, 0);
-            auto *hrirRight = sofa.getHRIR(1, *theta, 0, 0);
+            auto thetaMapped = juce::jmap<float>(*theta, 0, 1, (float)sofa.getMinTheta(), (float)sofa.getMaxTheta());
+            auto phiMapped = juce::jmap<float>(*phi, 0, 1, (float)sofa.getMinPhi(), (float)sofa.getMaxPhi());
+            auto radiusMapped = juce::jmap<float>(*radius, 0, 1, (float)sofa.getMinRadius(), (float)sofa.getMaxRadius());
+            
+            auto *hrirLeft = sofa.getHRIR(0, (int)thetaMapped, (int)phiMapped, (int)radiusMapped);
+            auto *hrirRight = sofa.getHRIR(1, (int)thetaMapped, (int)phiMapped, (int)radiusMapped);
             
             if ((hrirLeft != nullptr) && (hrirRight != nullptr))
             {
@@ -246,6 +256,8 @@ void OrbiterAudioProcessor::run()
                 rightHRTFProcessor.swapHRIR(hrirRight, 15000);
             }
             prevTheta = *theta;
+            prevPhi = *phi;
+            prevRadius = *radius;
         }
 
         juce::Thread::wait(10);

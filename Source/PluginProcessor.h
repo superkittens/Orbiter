@@ -76,6 +76,8 @@ private:
     //==============================================================================
     
     float prevTheta;
+    float prevPhi;
+    float prevRadius;
     bool hrtfParamChangeLoop;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrbiterAudioProcessor)

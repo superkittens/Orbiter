@@ -29,8 +29,13 @@ private:
     // access the processor object that created it.
     
     juce::Slider hrtfThetaSlider;
+    juce::Slider hrtfPhiSlider;
+    juce::Slider hrtfRadiusSlider;
     
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> hrtfThetaAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> hrtfPhiAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> hrtfRadiusAttachment;
+    
     
     OrbiterAudioProcessor& audioProcessor;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrbiterAudioProcessorEditor)
