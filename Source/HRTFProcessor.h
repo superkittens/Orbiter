@@ -32,6 +32,7 @@ public:
     bool            copyOLABuffer(std::vector<float> &dest, size_t numSamplesToCopy);
     bool            isHRIRLoaded() { return hrirLoaded; }
     
+    int test;
     
     
 protected:

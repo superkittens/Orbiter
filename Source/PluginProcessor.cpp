@@ -1,10 +1,10 @@
 /*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin processor.
-
-  ==============================================================================
-*/
+ ==============================================================================
+ 
+ This file contains the basic framework code for a JUCE plugin processor.
+ 
+ ==============================================================================
+ */
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
@@ -12,26 +12,33 @@
 //==============================================================================
 OrbiterAudioProcessor::OrbiterAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
-     : AudioProcessor (BusesProperties()
-                     #if ! JucePlugin_IsMidiEffect
-                      #if ! JucePlugin_IsSynth
-                       .withInput  ("Input",  juce::AudioChannelSet::mono(), true)
-                      #endif
-                       .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
-                     #endif
-                       ),
-                    Thread("HRTF Parameter Watcher"),
-                    valueTreeState(*this, nullptr, "PARAMETERS", createParameters())
+: AudioProcessor (BusesProperties()
+#if ! JucePlugin_IsMidiEffect
+#if ! JucePlugin_IsSynth
+                  .withInput  ("Input",  juce::AudioChannelSet::mono(), true)
+#endif
+                  .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
+#endif
+                  ),
+Thread("HRTF Parameter Watcher"),
+valueTreeState(*this, nullptr, "PARAMETERS", createParameters())
 #endif
 {
-    bool success = sofa.readSOFAFile(defaultSOFAFilePath.toStdString());
-    if (success)
-        sofaFileLoaded = true;
+    //    bool success = sofa.readSOFAFile(defaultSOFAFilePath.toStdString());
+    //    if (success)
+    //        sofaFileLoaded = true;
     
-    prevTheta = 0;
-    prevPhi = 0;
-    prevRadius = 0;
+    sofaFileLoaded = false;
+    newSofaFileWaiting = false;
+    newSofaFilePath = "";
+    currentSOFA = nullptr;
+    
+    prevTheta = -1;
+    prevPhi = -1;
+    prevRadius = -1;
     hrtfParamChangeLoop = true;
+    
+    audioBlockSize = 0;
     
     startThread();
 }
@@ -50,29 +57,29 @@ const juce::String OrbiterAudioProcessor::getName() const
 
 bool OrbiterAudioProcessor::acceptsMidi() const
 {
-   #if JucePlugin_WantsMidiInput
+#if JucePlugin_WantsMidiInput
     return true;
-   #else
+#else
     return false;
-   #endif
+#endif
 }
 
 bool OrbiterAudioProcessor::producesMidi() const
 {
-   #if JucePlugin_ProducesMidiOutput
+#if JucePlugin_ProducesMidiOutput
     return true;
-   #else
+#else
     return false;
-   #endif
+#endif
 }
 
 bool OrbiterAudioProcessor::isMidiEffect() const
 {
-   #if JucePlugin_IsMidiEffect
+#if JucePlugin_IsMidiEffect
     return true;
-   #else
+#else
     return false;
-   #endif
+#endif
 }
 
 double OrbiterAudioProcessor::getTailLengthSeconds() const
@@ -83,7 +90,7 @@ double OrbiterAudioProcessor::getTailLengthSeconds() const
 int OrbiterAudioProcessor::getNumPrograms()
 {
     return 1;   // NB: some hosts don't cope very well if you tell them there are 0 programs,
-                // so this should be at least 1, even if you're not really implementing programs.
+    // so this should be at least 1, even if you're not really implementing programs.
 }
 
 int OrbiterAudioProcessor::getCurrentProgram()
@@ -107,11 +114,13 @@ void OrbiterAudioProcessor::changeProgramName (int index, const juce::String& ne
 //==============================================================================
 void OrbiterAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    if (sofaFileLoaded)
-    {
-        leftHRTFProcessor.init(sofa.getHRIR(0, 0, 0, 0), 15000, (float)sampleRate, (size_t)samplesPerBlock / 2);
-        rightHRTFProcessor.init(sofa.getHRIR(1, 0, 0, 0), 15000, (float)sampleRate, (size_t)samplesPerBlock / 2);
-    }
+    audioBlockSize = samplesPerBlock;
+    
+    //    if (sofaFileLoaded)
+    //    {
+    //        leftHRTFProcessor.init(sofa.getHRIR(0, 0, 0, 0), 15000, (float)sampleRate, (size_t)samplesPerBlock / 2);
+    //        rightHRTFProcessor.init(sofa.getHRIR(1, 0, 0, 0), 15000, (float)sampleRate, (size_t)samplesPerBlock / 2);
+    //    }
 }
 
 void OrbiterAudioProcessor::releaseResources()
@@ -123,24 +132,24 @@ void OrbiterAudioProcessor::releaseResources()
 #ifndef JucePlugin_PreferredChannelConfigurations
 bool OrbiterAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
-  #if JucePlugin_IsMidiEffect
+#if JucePlugin_IsMidiEffect
     juce::ignoreUnused (layouts);
     return true;
-  #else
+#else
     // This is the place where you check if the layout is supported.
     // In this template code we only support mono or stereo.
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-     && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+        && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
-
+    
     // This checks if the input layout matches the output layout
-   #if ! JucePlugin_IsSynth
+#if ! JucePlugin_IsSynth
     if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
         return false;
-   #endif
-
+#endif
+    
     return true;
-  #endif
+#endif
 }
 #endif
 
@@ -149,8 +158,8 @@ void OrbiterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
-
-
+    
+    
     // In case we have more outputs than inputs, this code clears any output
     // channels that didn't contain input data, (because these aren't
     // guaranteed to be empty - they may contain garbage).
@@ -159,7 +168,7 @@ void OrbiterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     // this code if your algorithm always overwrites all the output channels.
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
-
+    
     // This is the place where you'd normally do the guts of your plugin's
     // audio processing...
     // Make sure to reset the state if your inner loop is processing
@@ -167,29 +176,32 @@ void OrbiterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     // Alternatively, you can process the samples with the channels
     // interleaved by keeping the same state.
     
-    for (int channel = 0; channel < 1; ++channel)
+    if (sofaFileLoaded)
     {
-        auto *channelData = buffer.getWritePointer (channel);
-
-        std::vector<float> data(buffer.getNumSamples());
-        for (int i = 0; i < buffer.getNumSamples(); ++i)
+        ReferenceCountedSOFA::Ptr retainedSofa(currentSOFA);
+        
+        for (int channel = 0; channel < 1; ++channel)
         {
-            data[i] = channelData[i];
-        }
-        
-        
-        auto *left = leftHRTFProcessor.calculateOutput(data);
-        auto *right = rightHRTFProcessor.calculateOutput(data);
-        
-        if (left != nullptr || right != nullptr)
-        {
-            auto *outLeft = buffer.getWritePointer(0);
-            auto *outRight = buffer.getWritePointer(1);
+            auto *channelData = buffer.getWritePointer (channel);
             
+            std::vector<float> data(buffer.getNumSamples());
             for (int i = 0; i < buffer.getNumSamples(); ++i)
+                data[i] = channelData[i];
+            
+            
+            auto *left = retainedSofa->leftHRTFProcessor.calculateOutput(data);
+            auto *right = retainedSofa->rightHRTFProcessor.calculateOutput(data);
+            
+            if (left != nullptr || right != nullptr)
             {
-                outLeft[i] = left[i];
-                outRight[i] = right[i];
+                auto *outLeft = buffer.getWritePointer(0);
+                auto *outRight = buffer.getWritePointer(1);
+                
+                for (auto i = 0; i < buffer.getNumSamples(); ++i)
+                {
+                    outLeft[i] = left[i];
+                    outRight[i] = right[i];
+                }
             }
         }
     }
@@ -237,30 +249,94 @@ void OrbiterAudioProcessor::run()
 {
     while (hrtfParamChangeLoop)
     {
+        checkForNewSofaToLoad();
+        checkForGUIParameterChanges();
+        juce::Thread::wait(10);
+    }
+}
+
+
+void OrbiterAudioProcessor::checkForGUIParameterChanges()
+{
+    ReferenceCountedSOFA::Ptr retainedSofa(currentSOFA);
+    
+    if (retainedSofa != nullptr)
+    {
         auto *theta = valueTreeState.getRawParameterValue(HRTF_THETA_ID);
         auto *phi = valueTreeState.getRawParameterValue(HRTF_PHI_ID);
         auto *radius = valueTreeState.getRawParameterValue(HRTF_RADIUS_ID);
+        
+        float t = *theta;
+        float p = *phi;
+        float r = *radius;
+        
+        auto thetaMapped = juce::jmap<float>(t, 0, 1, (float)retainedSofa->sofa.getMinTheta(), (float)retainedSofa->sofa.getMaxTheta());
+        auto phiMapped = juce::jmap<float>(p, 0, 1, (float)retainedSofa->sofa.getMinPhi(), (float)retainedSofa->sofa.getMaxPhi());
+        auto radiusMapped = juce::jmap<float>(r, 0, 1, (float)retainedSofa->sofa.getMinRadius(), (float)retainedSofa->sofa.getMaxRadius());
 
-        if ((*theta != prevTheta) || (*phi != prevTheta) || (*radius != prevRadius))
+        
+        if ((thetaMapped != prevTheta) || (phiMapped != prevPhi) || (radiusMapped != prevRadius))
         {
-            auto thetaMapped = juce::jmap<float>(*theta, 0, 1, (float)sofa.getMinTheta(), (float)sofa.getMaxTheta());
-            auto phiMapped = juce::jmap<float>(*phi, 0, 1, (float)sofa.getMinPhi(), (float)sofa.getMaxPhi());
-            auto radiusMapped = juce::jmap<float>(*radius, 0, 1, (float)sofa.getMinRadius(), (float)sofa.getMaxRadius());
-            
-            auto *hrirLeft = sofa.getHRIR(0, (int)thetaMapped, (int)phiMapped, (int)radiusMapped);
-            auto *hrirRight = sofa.getHRIR(1, (int)thetaMapped, (int)phiMapped, (int)radiusMapped);
+            auto *hrirLeft = retainedSofa->sofa.getHRIR(0, (int)thetaMapped, (int)phiMapped, (int)radiusMapped);
+            auto *hrirRight = retainedSofa->sofa.getHRIR(1, (int)thetaMapped, (int)phiMapped, (int)radiusMapped);
             
             if ((hrirLeft != nullptr) && (hrirRight != nullptr))
             {
-                leftHRTFProcessor.swapHRIR(hrirLeft, 15000);
-                rightHRTFProcessor.swapHRIR(hrirRight, 15000);
+                retainedSofa->leftHRTFProcessor.swapHRIR(hrirLeft, currentSOFA->hrirSize);
+                retainedSofa->rightHRTFProcessor.swapHRIR(hrirRight, currentSOFA->hrirSize);
             }
-            prevTheta = *theta;
-            prevPhi = *phi;
-            prevRadius = *radius;
+            prevTheta = thetaMapped;
+            prevPhi = phiMapped;
+            prevRadius = radiusMapped;
+            
+            sofaFileLoaded = true;
         }
+        
+    }
+}
 
-        juce::Thread::wait(10);
+
+void OrbiterAudioProcessor::checkForNewSofaToLoad()
+{
+    if (newSofaFileWaiting)
+    {
+        if (newSofaFilePath.isNotEmpty())
+        {
+            ReferenceCountedSOFA::Ptr newSofa = new ReferenceCountedSOFA();
+            bool success = newSofa->sofa.readSOFAFile(newSofaFilePath.toStdString());
+            
+            if (success){
+                newSofa->hrirSize = juce::jmin((size_t)newSofa->sofa.getN(), MAX_HRIR_LENGTH);
+                
+                bool leftHRTFSuccess = false;
+                bool rightHRTFSuccess = false;
+                
+                auto thetaMapped = juce::jmap<float>(0, newSofa->sofa.getMinTheta(), newSofa->sofa.getMaxTheta());
+                auto phiMapped = juce::jmap<float>(0, newSofa->sofa.getMinPhi(), newSofa->sofa.getMaxPhi());
+                auto radiusMapped = juce::jmap<float>(0, newSofa->sofa.getMinRadius(), newSofa->sofa.getMaxRadius());
+                
+                leftHRTFSuccess = newSofa->leftHRTFProcessor.init(newSofa->sofa.getHRIR(0, (int)thetaMapped, (int)phiMapped, (int)radiusMapped), newSofa->hrirSize, newSofa->sofa.getFs(), audioBlockSize);
+                rightHRTFSuccess = newSofa->rightHRTFProcessor.init(newSofa->sofa.getHRIR(1, (int)thetaMapped, (int)phiMapped, (int)radiusMapped), newSofa->hrirSize, newSofa->sofa.getFs(), audioBlockSize);
+                
+                if (leftHRTFSuccess && rightHRTFSuccess)
+                    currentSOFA = newSofa;
+                
+                sofaInstances.add(newSofa);
+            }
+        }
+        
+        newSofaFileWaiting = false;
+    }
+}
+
+
+void OrbiterAudioProcessor::checkSofaInstancesToFree()
+{
+    for (auto i = sofaInstances.size(); i >= 0; --i)
+    {
+        ReferenceCountedSOFA::Ptr sofaInstance(sofaInstances.getUnchecked(i));
+        if (sofaInstance->getReferenceCount() == 2)
+            sofaInstances.remove(i);
     }
 }
 

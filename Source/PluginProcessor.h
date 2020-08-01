@@ -14,7 +14,7 @@
 
 #define HRTF_THETA_ID "HRTF_THETA"
 #define HRTF_PHI_ID "HRTF_PHI"
-#define HRTF_RADIUS_ID "HRTF_RADIU"
+#define HRTF_RADIUS_ID "HRTF_RADIUS"
 
 //==============================================================================
 /**
@@ -62,12 +62,9 @@ public:
     //==============================================================================
     void run() override;
     
-    BasicSOFA::BasicSOFA sofa;
+    bool newSofaFileWaiting;
     bool sofaFileLoaded;
-    const juce::String defaultSOFAFilePath = "/Users/superkittens/projects/sound_prototypes/hrtf/hrtfs/BRIRs_from_a_room/A/002.sofa";
-    
-    HRTFProcessor leftHRTFProcessor;
-    HRTFProcessor rightHRTFProcessor;
+    juce::String newSofaFilePath;
     
     juce::AudioProcessorValueTreeState valueTreeState;
     juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
@@ -75,10 +72,43 @@ public:
 private:
     //==============================================================================
     
+    class ReferenceCountedSOFA : public juce::ReferenceCountedObject
+    {
+    public:
+        typedef juce::ReferenceCountedObjectPtr<ReferenceCountedSOFA> Ptr;
+        
+        ReferenceCountedSOFA(){}
+        BasicSOFA::BasicSOFA *getSOFA() { return &sofa; }
+        
+        BasicSOFA::BasicSOFA sofa;
+        HRTFProcessor leftHRTFProcessor;
+        HRTFProcessor rightHRTFProcessor;
+        
+        size_t hrirSize;
+        
+    private:
+        
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ReferenceCountedSOFA)
+    };
+    
+    
+    //==============================================================================
+    
+    void checkSofaInstancesToFree();
+    void checkForNewSofaToLoad();
+    void checkForGUIParameterChanges();
+    
     float prevTheta;
     float prevPhi;
     float prevRadius;
     bool hrtfParamChangeLoop;
+    
+    int audioBlockSize;
+    
+    static constexpr size_t MAX_HRIR_LENGTH = 15000;
+    
+    ReferenceCountedSOFA::Ptr currentSOFA;
+    juce::ReferenceCountedArray<ReferenceCountedSOFA> sofaInstances;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrbiterAudioProcessor)
 };

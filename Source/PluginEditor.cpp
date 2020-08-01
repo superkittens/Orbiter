@@ -15,7 +15,7 @@ OrbiterAudioProcessorEditor::OrbiterAudioProcessorEditor (OrbiterAudioProcessor&
 {
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
-    setSize (400, 300);
+    setSize (400, 150);
     
     hrtfThetaSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
     hrtfThetaSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, true, 50, 10);
@@ -32,6 +32,9 @@ OrbiterAudioProcessorEditor::OrbiterAudioProcessorEditor (OrbiterAudioProcessor&
     hrtfRadiusSlider.setRange(0, 1);
     addAndMakeVisible(hrtfRadiusSlider);
     
+    sofaFileButton.setButtonText("Open SOFA");
+    sofaFileButton.onClick = [this]{ openSofaButtonClicked(); };
+    addAndMakeVisible(sofaFileButton);
     
     hrtfThetaAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_THETA_ID, hrtfThetaSlider);
     
@@ -71,4 +74,27 @@ void OrbiterAudioProcessorEditor::resized()
     hrtfThetaSlider.setBounds(bounds.withTrimmedTop(20).withSize(componentSize, componentSize));
     hrtfPhiSlider.setBounds(getLocalBounds().withTrimmedTop(20).withTrimmedLeft(100).withSize(componentSize, componentSize));
     hrtfRadiusSlider.setBounds(getLocalBounds().withTrimmedTop(20).withTrimmedLeft(200).withSize(componentSize, componentSize));
+    
+    sofaFileButton.setBounds(getLocalBounds().withTrimmedTop(50).removeFromRight(85).withSize(70, 20));
+}
+
+
+void OrbiterAudioProcessorEditor::openSofaButtonClicked()
+{
+    juce::FileChooser fileChooser("Select SOFA File", {}, "*.sofa");
+    
+    if (fileChooser.browseForFileToOpen())
+    {
+        auto file = fileChooser.getResult();
+        auto path = file.getFullPathName();
+        
+        notifyNewSOFA(path);
+    }
+}
+
+
+void OrbiterAudioProcessorEditor::notifyNewSOFA(juce::String filePath)
+{
+    audioProcessor.newSofaFilePath.swapWith(filePath);
+    audioProcessor.newSofaFileWaiting = true;
 }

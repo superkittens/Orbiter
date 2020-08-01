@@ -23,6 +23,9 @@ public:
     //==============================================================================
     void paint (juce::Graphics&) override;
     void resized() override;
+    
+    void openSofaButtonClicked();
+    void notifyNewSOFA(juce::String filePath);
 
 private:
     // This reference is provided as a quick way for your editor to
@@ -31,6 +34,8 @@ private:
     juce::Slider hrtfThetaSlider;
     juce::Slider hrtfPhiSlider;
     juce::Slider hrtfRadiusSlider;
+    
+    juce::TextButton sofaFileButton;
     
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> hrtfThetaAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> hrtfPhiAttachment;
