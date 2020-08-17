@@ -106,9 +106,12 @@ private:
     int audioBlockSize;
     
     static constexpr size_t MAX_HRIR_LENGTH = 15000;
-    
+
     ReferenceCountedSOFA::Ptr currentSOFA;
     juce::ReferenceCountedArray<ReferenceCountedSOFA> sofaInstances;
+    
+    //  Debug variables
+    size_t blockNum = 0;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrbiterAudioProcessor)
 };

@@ -33,6 +33,9 @@ bool HRTFProcessor::init(const double *hrir, size_t hrirSize, float samplingFreq
     if (hrirLoaded)
         return false;
     
+    if (hrir == nullptr)
+        return false;
+    
     if (hrirSize <= 0 || samplingFreq <= 0.0 || audioBufferSize <= 1)
         return false;
     
@@ -148,11 +151,15 @@ const float* HRTFProcessor::calculateOutput(const std::vector<float> &x)
             crossfadeWithNewHRTF(x);
             
             std::copy(auxHRTFBuffer.begin(), auxHRTFBuffer.end(), activeHRTF.begin());
+            
+            crossFaded = true;
         }
-    }
+    }else
+        crossFaded = false;
     
     if(!overlapAndAdd())
         return nullptr;
+    
     
     return olaBuffer.data() + olaWriteIndex;
 }
@@ -170,12 +177,20 @@ bool HRTFProcessor::setupHRTF(const double *hrir, size_t hrirSize)
     juce::SpinLock::ScopedLockType scopedLock(hrirChangingLock);
     
     std::fill(auxHRTFBuffer.begin(), auxHRTFBuffer.end(), std::complex<float>(0.0, 0.0));
+    
+    std::vector<float> hrirVec(hrirSize);
+    for (auto i = 0; i < hrirSize; ++i)
+        hrirVec[i] = hrir[i];
+    
+    if (!removeImpulseDelay(hrirVec))
+        return false;
+    
     for (auto i = 0; i < hrirSize; ++i)
     {
         if (!hrirLoaded)
-            activeHRTF.at(i) = std::complex<float>((float)hrir[i], 0.0);
+            activeHRTF.at(i) = std::complex<float>((float)hrirVec[i], 0.0);
         else
-            auxHRTFBuffer.at(i) = std::complex<float>((float)hrir[i], 0.0);
+            auxHRTFBuffer.at(i) = std::complex<float>((float)hrirVec[i], 0.0);
     }
     
     if (!hrirLoaded)
@@ -250,6 +265,7 @@ bool HRTFProcessor::overlapAndAdd()
     for (auto i = 0; i < zeroPaddedBufferSize; ++i)
     {
         if (offset >= zeroPaddedBufferSize)
+            
             offset = 0;
         
         olaBuffer.at(offset) += xBuffer.at(i).real();
@@ -267,6 +283,70 @@ bool HRTFProcessor::overlapAndAdd()
 unsigned int HRTFProcessor::calculateNextPowerOfTwo(float x)
 {
     return static_cast<unsigned int>(log2(x)) + 1;
+}
+
+
+/*
+ *  Some impulse responses will have a delay before the impulse is actually triggered
+ *  This isn't much of a problem except when the delays between different impulses are different
+ *  which can lead to unpleasant zipper noise between HRIR transitions.
+ *  We'll attempt to remove the delay as much as possible to bring all HRIRs to start at a "common" point
+ *
+ *  The starting point is determined by finding the first point where the impulse has a value >= abs(mean) + std dev
+ */
+bool HRTFProcessor::removeImpulseDelay(std::vector<float> &hrir)
+{
+    if (hrir.size() == 0) return false;
+    
+    auto stats = getMeanAndStd(hrir);
+    auto threshold = abs(stats.first) + stats.second;
+    size_t impulseStart = 0;
+    
+    if (threshold < 0) return false;
+    
+    for (auto i = 0; i < hrir.size(); ++i)
+    {
+        if (abs(hrir[i]) >= threshold)
+        {
+            impulseStart = i;
+            break;
+        }
+    }
+    
+    std::copy(hrir.begin() + impulseStart, hrir.end(), hrir.begin());
+    std::fill(hrir.end() - impulseStart, hrir.end(), 0.0);
+    
+    return true;
+}
+
+
+/*
+ *  Simple mean and std deviation calculation function
+ *  Mean and std are returned as a std::pair where mean is the first value and std is the second
+ */
+std::pair<float, float> HRTFProcessor::getMeanAndStd(const std::vector<float> &x) const
+{
+    std::pair<float, float> stats(0, 0);
+    
+    if (x.size() != 0)
+    {
+        //  Calculate mean
+        float sum = 0;
+        for (auto &i : x)
+            sum += i;
+        
+        stats.first = sum / x.size();
+        
+        //  Calculate std
+        float stdSum = 0;
+        for (auto &i : x)
+            stdSum += (i - stats.first) * (i - stats.first);
+        
+        stdSum = sqrt(stdSum / x.size());
+        stats.second = stdSum;
+    }
+    
+    return stats;
 }
 
 

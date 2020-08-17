@@ -32,17 +32,20 @@ public:
     bool            copyOLABuffer(std::vector<float> &dest, size_t numSamplesToCopy);
     bool            isHRIRLoaded() { return hrirLoaded; }
     
-    int test;
+    bool            crossFaded;
     
     
 protected:
     
-    bool            setupHRTF(const double *hrir, size_t hrirSize);
-    bool            overlapAndAdd();
-    bool            crossfadeWithNewHRTF(const std::vector<float> &x);
-    unsigned int    calculateNextPowerOfTwo(float x);
+    bool                        setupHRTF(const double *hrir, size_t hrirSize);
+    bool                        overlapAndAdd();
+    bool                        crossfadeWithNewHRTF(const std::vector<float> &x);
+    unsigned int                calculateNextPowerOfTwo(float x);
+    bool                        removeImpulseDelay(std::vector<float> &hrir);
+    std::pair<float, float>     getMeanAndStd(const std::vector<float> &x) const;
     
-    double          fs;
+    
+    double                                          fs;
     
     std::vector<float>                              shadowOLABuffer;
     std::vector<std::complex<float>>                activeHRTF;
@@ -64,8 +67,6 @@ protected:
     juce::SpinLock                                  shadowOLACopyingLock;
     
     bool                                            hrirLoaded;
-    
-    static constexpr size_t                         NUM_BUFFERS = 2;
 };
 
 
