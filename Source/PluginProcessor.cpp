@@ -162,15 +162,13 @@ void OrbiterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         {
             auto *channelData = buffer.getWritePointer (channel);
             
-            std::vector<float> data(buffer.getNumSamples());
-            for (int i = 0; i < buffer.getNumSamples(); ++i)
-                data[i] = channelData[i];
+            retainedSofa->leftHRTFProcessor.addSamples(channelData, buffer.getNumSamples());
+            retainedSofa->rightHRTFProcessor.addSamples(channelData, buffer.getNumSamples());
             
+            auto left = retainedSofa->leftHRTFProcessor.getOutput(buffer.getNumSamples());
+            auto right = retainedSofa->rightHRTFProcessor.getOutput(buffer.getNumSamples());
             
-            auto *left = retainedSofa->leftHRTFProcessor.calculateOutput(data);
-            auto *right = retainedSofa->rightHRTFProcessor.calculateOutput(data);
-            
-            if (left != nullptr || right != nullptr)
+            if (left.size() != 0 || right.size() != 0)
             {
                 auto *outLeft = buffer.getWritePointer(0);
                 auto *outRight = buffer.getWritePointer(1);
@@ -180,14 +178,6 @@ void OrbiterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
                     outLeft[i] = left[i];
                     outRight[i] = right[i];
                 }
-                
-//                if (retainedSofa->leftHRTFProcessor.crossFaded)
-//                    std::cout << "CROSSFADED BLOCK NUM: " << blockNum++ << std::endl << std::endl;
-//                else
-//                    std::cout << "BLOCK NUM: " << blockNum++ << std::endl << std::endl;
-//                for (auto i = 0; i < buffer.getNumSamples(); ++i)
-//                    std::cout << left[i] << std::endl;
-                
             }
 
         }

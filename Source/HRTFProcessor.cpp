@@ -39,6 +39,8 @@ bool HRTFProcessor::init(const double *hrir, size_t hrirSize, float samplingFreq
     if (hrirSize <= 0 || samplingFreq <= 0.0 || audioBufferSize <= 1)
         return false;
     
+    //  audioBufferSize must be a power of 2
+    //  Check this constraint here
     auto audioBufferSizeCopy = audioBufferSize;
     size_t bitSum = 0;
     for (auto i = 0; i < sizeof(audioBufferSize) * 8; ++i)
@@ -51,8 +53,10 @@ bool HRTFProcessor::init(const double *hrir, size_t hrirSize, float samplingFreq
         return false;
     
     
+    //  When performing overlap and add with windowing, we need to have 2x audioBufferSize in order to get audioBufferSize outputs
     fs = samplingFreq;
-    audioBlockSize = audioBufferSize;
+    audioBlockSize = (audioBufferSize * 2) + 1;
+    hopSize = audioBufferSize;
     
     //  Calculate buffer sizes and initialize them
     auto bufferPower = calculateNextPowerOfTwo(hrirSize + audioBlockSize);
@@ -61,6 +65,12 @@ bool HRTFProcessor::init(const double *hrir, size_t hrirSize, float samplingFreq
     fftEngine.reset(new juce::dsp::FFT(bufferPower));
     if (fftEngine.get() == nullptr)
         return false;
+    
+    inputBuffer = std::vector<float>(3 * audioBufferSize+ 1);
+    std::fill(inputBuffer.begin(), inputBuffer.end(), 0.0);
+    
+    outputBuffer = std::vector<float>(zeroPaddedBufferSize);
+    std::fill(outputBuffer.begin(), outputBuffer.end(), 0.0);
     
     xBuffer = std::vector<std::complex<float>>(zeroPaddedBufferSize);
     std::fill(xBuffer.begin(), xBuffer.end(), std::complex<float>(0.0, 0.0));
@@ -78,6 +88,21 @@ bool HRTFProcessor::init(const double *hrir, size_t hrirSize, float samplingFreq
     
     auxHRTFBuffer = std::vector<std::complex<float>>(zeroPaddedBufferSize);
     std::fill(xBuffer.begin(), xBuffer.end(), std::complex<float>(0.0, 0.0));
+    
+    outputSampleStart = 0;
+    outputSampleEnd = 0;
+    numSamplesAdded = 0;
+    inputBlockStart = 0;
+    inputSampleAddIndex = 0;
+    numOutputSamplesAvailable = 0;
+    
+    
+    //  Create input window
+    //  To satisfy the COLA constraint for a Hamming window, the last value should be 0
+    window = std::vector<float>(audioBlockSize);
+    juce::dsp::WindowingFunction<float>::fillWindowingTables(window.data(), audioBlockSize, juce::dsp::WindowingFunction<float>::WindowingMethod::hamming);
+    window[audioBlockSize - 1] = 0.0;
+    
     
     //  Transform HRIR into HRTF
     if (!setupHRTF(hrir, hrirSize))
@@ -112,6 +137,83 @@ bool HRTFProcessor::swapHRIR(const double *hrir, size_t hrirSize)
 
 /*
  *  DO NOT CALL THIS FUNCTION ON MULTIPLE THREADS
+ *  Add input samples into the input buffer
+ *  If enough samples have been collected then process those samples
+ *  To get the processed output, call getOutput()
+ */
+bool HRTFProcessor::addSamples(float *samples, size_t numSamples)
+{
+    if (numSamples > inputBuffer.size() - numSamplesAdded)
+        return false;
+    
+    for (auto i = 0; i < numSamples; ++i)
+    {
+        inputBuffer[inputSampleAddIndex] = samples[i];
+        inputSampleAddIndex = (inputSampleAddIndex + 1) % inputBuffer.size();
+        numSamplesAdded++;
+    }
+    
+    
+    if (numSamplesAdded >= audioBlockSize)
+    {
+        numSamplesAdded -= hopSize;
+        std::vector<float> x(audioBlockSize);
+        auto blockStart = inputBlockStart;
+        
+        for (auto i = 0; i < audioBlockSize; ++i)
+        {
+            x[i] = inputBuffer[blockStart] * window[i];
+            blockStart = (blockStart + 1) % inputBuffer.size();
+        }
+        
+        inputBlockStart = (inputBlockStart + hopSize) % inputBuffer.size();
+        calculateOutput(x);
+    }
+    
+    return true;
+    
+}
+
+
+std::vector<float> HRTFProcessor::getOutput(size_t numSamples)
+{
+    std::vector<float> out(numSamples);
+    if (numSamples > numOutputSamplesAvailable)
+        return std::vector<float>(0);
+    
+    for (auto i = 0; i < numSamples; ++i)
+    {
+        out[i] = outputBuffer[outputSampleStart];
+        outputSampleStart = (outputSampleStart + 1) % outputBuffer.size();
+    }
+    
+    numOutputSamplesAvailable -= numSamples;
+    
+    return out;
+}
+
+
+/*
+ *  Clear everything in the input, output and OLA buffers
+ *  Any indices related to these buffers are also reset
+ */
+void HRTFProcessor::flushBuffers()
+{
+    std::fill(inputBuffer.begin(), inputBuffer.end(), 0.0);
+    std::fill(outputBuffer.begin(), outputBuffer.end(), 0.0);
+    std::fill(olaBuffer.begin(), olaBuffer.end(), 0.0);
+    
+    inputBlockStart = 0;
+    inputSampleAddIndex = 0;
+    numSamplesAdded = 0;
+    outputSamplesStart = 0;
+    outputSamplesEnd = 0;
+    numOutputSamplesAvailable = 0;
+}
+
+
+/*
+ *  DO NOT CALL THIS FUNCTION ON MULTIPLE THREADS
  *  Apply the HRTF to an input sample of audio data
  *  If the HRTF is changed, the output will be a crossfaded mix of audio data
  *  with both HRTFs applied
@@ -124,11 +226,9 @@ const float* HRTFProcessor::calculateOutput(const std::vector<float> &x)
     if (x.size() != audioBlockSize)
         return nullptr;
     
-    std::fill(olaBuffer.begin() + olaWriteIndex, olaBuffer.begin() + olaWriteIndex + audioBlockSize, 0.0);
+    std::fill(olaBuffer.begin() + olaWriteIndex, olaBuffer.begin() + olaWriteIndex + hopSize, 0.0);
     
-    olaWriteIndex += audioBlockSize;
-    if (olaWriteIndex >= zeroPaddedBufferSize)
-        olaWriteIndex = 0;
+    olaWriteIndex = (olaWriteIndex + hopSize) % olaBuffer.size();
     
     std::fill(xBuffer.begin(), xBuffer.end(), std::complex<float>(0.0, 0.0));
     for (auto i = 0; i < x.size(); ++i)
@@ -161,10 +261,19 @@ const float* HRTFProcessor::calculateOutput(const std::vector<float> &x)
         return nullptr;
     
     
+    //  Copy outputtable audio data to the output buffer
+    std::copy(olaBuffer.begin() + olaWriteIndex, olaBuffer.begin() + olaWriteIndex + hopSize, outputBuffer.begin() + outputSampleEnd);
+    outputSampleEnd = (outputSampleEnd + hopSize) % outputBuffer.size();
+    
+    numOutputSamplesAvailable += hopSize;
+    
+    
     return olaBuffer.data() + olaWriteIndex;
 }
 
 
+
+//  Convert an HRIR into an HRTF and queue the new HRTF for swapping which is done in calculateOutput()
 bool HRTFProcessor::setupHRTF(const double *hrir, size_t hrirSize)
 {
     if (hrirSize == 0 || hrirSize > zeroPaddedBufferSize)
@@ -206,6 +315,7 @@ bool HRTFProcessor::setupHRTF(const double *hrir, size_t hrirSize)
 }
 
 
+//  Peel off a copy of the OLA buffer
 bool HRTFProcessor::copyOLABuffer(std::vector<float> &dest, size_t numSamplesToCopy)
 {
     if (!hrirLoaded)
@@ -264,12 +374,8 @@ bool HRTFProcessor::overlapAndAdd()
     
     for (auto i = 0; i < zeroPaddedBufferSize; ++i)
     {
-        if (offset >= zeroPaddedBufferSize)
-            
-            offset = 0;
-        
         olaBuffer.at(offset) += xBuffer.at(i).real();
-        offset++;
+        offset = (offset + 1) % zeroPaddedBufferSize;
     }
     
     juce::SpinLock::ScopedTryLockType olaScopeLock(shadowOLACopyingLock);
@@ -372,9 +478,9 @@ void HRTFProcessorTest::runTest()
     expect(success);
     
     expectEquals<int>(processor.isHRIRLoaded(), 1);
-    expectEquals<size_t>(processor.zeroPaddedBufferSize, 1024);
+    expectEquals<size_t>(processor.zeroPaddedBufferSize, 2048);
     expectEquals<float>(processor.fs, samplingFreq);
-    expectEquals<size_t>(processor.audioBlockSize, audioBufferSize);
+    expectEquals<size_t>(processor.audioBlockSize, 2 * audioBufferSize + 1);
     
     for (auto i = 0; i < processor.zeroPaddedBufferSize; ++i)
         expectWithinAbsoluteError<float>(std::abs(processor.activeHRTF[i]), 1.0, 0.01);
@@ -385,13 +491,18 @@ void HRTFProcessorTest::runTest()
     beginTest("HRTF Application");
     
     std::vector<float> x(audioBufferSize);
-    std::fill(x.begin(), x.end(), 0.0);
-    x[0] = 1.0;
+    std::fill(x.begin(), x.end(), 1.0);
     
-    const auto* output = processor.calculateOutput(x);
+    //  In order to meet the min number of samples needed for processing, call addSamples() 3 times
+    processor.addSamples(x.data(), x.size());
+    processor.addSamples(x.data(), x.size());
+    processor.addSamples(x.data(), x.size());
     
-    expect(output != nullptr ?  true : false);
+    auto output = processor.getOutput(audioBufferSize);
     
+    expectEquals<size_t>(output.size(), audioBufferSize);
+    
+//    std::cout << "HRTFProcessor Output" << std::endl;
 //    std::cout << "------------------" << std::endl;
 //
 //    for (auto i = 0; i < audioBufferSize; ++i)
@@ -401,52 +512,46 @@ void HRTFProcessorTest::runTest()
     
     
     beginTest("Changing HRTF");
+
+    size_t testSignalLength = 2048;
+    float testFrequency = 500;
     
+    //  Create container to hold the results of processed data when HRIR was changed
+    std::vector<float> processedData(testSignalLength);
+    std::fill(processedData.begin(), processedData.end(), 0.0);
+    
+    //  First, reset all the internal HRTFProcessor buffers to start fresh
+    processor.flushBuffers();
+    output = processor.getOutput(audioBufferSize);
+    
+    expectEquals<size_t>(output.size(), 0);
+
+    std::vector<float> signal(testSignalLength);
+    createTestSignal(samplingFreq, testFrequency, signal);
+
+    processor.addSamples(signal.data(), audioBufferSize * 3);
+    output = processor.getOutput(audioBufferSize);
+    std::copy(output.begin(), output.end(), processedData.begin());
+    
+    //  Swap HRIR for an impulse response of all ones
     std::fill(hrir.begin(), hrir.end(), 1.0);
     expect(processor.swapHRIR(hrir.data(), hrir.size()));
     
-    std::vector<float> signal(2048);
-    createTestSignal(44100, 500, signal);
-    
-    output = processor.calculateOutput(x);
-    
-    expect(output != nullptr ? true : false);
-    
-//    std::cout << "==================" << std::endl;
-//
-//    for (auto i = 0; i < processor.zeroPaddedBufferSize; ++i)
-//        std::cout << processor.olaBuffer[i] << std::endl;
-    
-    
-    //===================================================================================================//
-    
-    
-    beginTest("Regular Operation");
-    size_t numTestSignalPoints = 2048;
-    float freq = 1000;
-    std::vector<float> testSignal(numTestSignalPoints);
-    
-    expect(createTestSignal(samplingFreq, freq, testSignal));
-    
-    std::fill(hrir.begin(), hrir.end(), 0.0);
-    hrir[0] = 1.0;
-    
-    HRTFProcessor regularProcesor;
-    expect(regularProcesor.init(hrir.data(), hrir.size(), samplingFreq, audioBufferSize));
-
-    for (auto block = 0; block < 3; ++block)
+    //  Feed in rest of test signal and get the processed data
+    for (auto i = 0; i < (testSignalLength / audioBufferSize) - 3; ++i)
     {
-        std::vector<float> audioBlock(audioBufferSize);
-        for (auto i = 0; i < audioBufferSize; ++i)
-            audioBlock[i] = testSignal[block * audioBufferSize + i];
-        
-        regularProcesor.calculateOutput(audioBlock);
+        processor.addSamples(signal.data() + ((i + 3) * audioBufferSize), audioBufferSize);
+        output = processor.getOutput(audioBufferSize);
+        std::copy(output.begin(), output.end(), processedData.begin() + ((i + 1) * audioBufferSize));
     }
     
+
+    std::cout << "Processed Data from HRTF Change" << std::endl;
     std::cout << "==================" << std::endl;
+
+    for (auto i = 0; i < testSignalLength; ++i)
+        std::cout << processedData[i] << std::endl;
     
-    for (auto i = 0; i < processor.zeroPaddedBufferSize; ++i)
-        std::cout << regularProcesor.olaBuffer[i] << std::endl;
 }
 
 
