@@ -213,10 +213,11 @@ void OrbiterAudioProcessor::setStateInformation (const void* data, int sizeInByt
 juce::AudioProcessorValueTreeState::ParameterLayout OrbiterAudioProcessor::createParameters()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> parameters;
+    juce::NormalisableRange<float> parameterRange(0, 1, 0.0001);
     
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_THETA_ID, "Theta", 0, 1, 0));
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_PHI_ID, "Phi", 0, 1, 0));
-    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_RADIUS_ID, "Radius", 0, 1, 0));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_THETA_ID, "Theta", parameterRange, 0));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_PHI_ID, "Phi", parameterRange, 0));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_RADIUS_ID, "Radius", parameterRange, 0));
     //parameters.push_back(std::make_unique<juce::AudioParameterBool>("ORBIT", "Enable Orbit", false));
     return {parameters.begin(), parameters.end()};
 }
@@ -247,13 +248,14 @@ void OrbiterAudioProcessor::checkForGUIParameterChanges()
         float p = *phi;
         float r = *radius;
         
-        auto thetaMapped = juce::jmap<float>(t, 0.f, 1.f, (float)retainedSofa->sofa.getMinTheta(), (float)retainedSofa->sofa.getMaxTheta());
-        auto phiMapped = juce::jmap<float>(p, 0.f, 1.f, (float)retainedSofa->sofa.getMinPhi(), (float)retainedSofa->sofa.getMaxPhi());
-        auto radiusMapped = juce::jmap<float>(r, 0.f, 1.f, (float)retainedSofa->sofa.getMinRadius(), (float)retainedSofa->sofa.getMaxRadius());
+        auto thetaMapped = mapAndQuantize(t, 0.f, 1.f, retainedSofa->sofa.getMinTheta(), retainedSofa->sofa.getMaxTheta(), retainedSofa->sofa.getDeltaTheta());
+        auto phiMapped = mapAndQuantize(p, 0.f, 1.f, retainedSofa->sofa.getMinPhi(), retainedSofa->sofa.getMaxPhi(), retainedSofa->sofa.getDeltaPhi());
+        auto radiusMapped = mapAndQuantize(r, 0.f, 1.f, retainedSofa->sofa.getMinRadius(), retainedSofa->sofa.getMaxRadius(), retainedSofa->sofa.getDeltaRadius());
 
         
         if ((thetaMapped != prevTheta) || (phiMapped != prevPhi) || (radiusMapped != prevRadius))
         {
+            std::cout << "Val: " << t << " Theta: " << thetaMapped << " Phi: " << phiMapped << " Radius: " << radiusMapped << "\n";
             
             auto *hrirLeft = retainedSofa->sofa.getHRIR(0, (int)thetaMapped, (int)phiMapped, radiusMapped);
             auto *hrirRight = retainedSofa->sofa.getHRIR(1, (int)thetaMapped, (int)phiMapped, radiusMapped);
@@ -288,9 +290,9 @@ void OrbiterAudioProcessor::checkForNewSofaToLoad()
                 bool leftHRTFSuccess = false;
                 bool rightHRTFSuccess = false;
                 
-                auto thetaMapped = juce::jmap<float>(0, newSofa->sofa.getMinTheta(), newSofa->sofa.getMaxTheta());
-                auto phiMapped = juce::jmap<float>(0.5, newSofa->sofa.getMinPhi(), newSofa->sofa.getMaxPhi());
-                auto radiusMapped = juce::jmap<float>(1, newSofa->sofa.getMinRadius(), newSofa->sofa.getMaxRadius());
+                auto thetaMapped = mapAndQuantize(0.5, 0, 1, newSofa->sofa.getMinTheta(), newSofa->sofa.getMaxTheta(), newSofa->sofa.getDeltaTheta());
+                auto phiMapped = mapAndQuantize(0.5, 0, 1, newSofa->sofa.getMinPhi(), newSofa->sofa.getMaxPhi(), newSofa->sofa.getDeltaPhi());
+                auto radiusMapped = mapAndQuantize(0.5, 0, 1, newSofa->sofa.getMinRadius(), newSofa->sofa.getMaxRadius(), newSofa->sofa.getDeltaRadius());
                 
                 leftHRTFSuccess = newSofa->leftHRTFProcessor.init(newSofa->sofa.getHRIR(0, (int)thetaMapped, (int)phiMapped, radiusMapped), newSofa->hrirSize, newSofa->sofa.getFs(), audioBlockSize);
                 rightHRTFSuccess = newSofa->rightHRTFProcessor.init(newSofa->sofa.getHRIR(1, (int)thetaMapped, (int)phiMapped, radiusMapped), newSofa->hrirSize, newSofa->sofa.getFs(), audioBlockSize);
@@ -315,6 +317,27 @@ void OrbiterAudioProcessor::checkSofaInstancesToFree()
         if (sofaInstance->getReferenceCount() == 2)
             sofaInstances.remove(i);
     }
+}
+
+
+/*
+ *  Map a value from one set to another
+ *  This works similar to jmap except that the output is quantized in steps of outputDelta
+ */
+float OrbiterAudioProcessor::mapAndQuantize(float value, float inputMin, float inputMax, float outputMin, float outputMax, float outputDelta)
+{
+    if ((outputMax - outputMin) == 0)
+        return 0;
+    
+    if ((outputMax < outputMin) || (inputMax < inputMin) || (outputDelta < 0))
+        return 0;
+    
+    unsigned int totalNumSteps = (outputMax - outputMin) / outputDelta;
+    float inputChunkSize = (inputMax - inputMin) / totalNumSteps;
+    
+    unsigned int deltaMultiplier = value / inputChunkSize;
+    
+    return (deltaMultiplier * outputDelta) + outputMin;
 }
 
 //==============================================================================

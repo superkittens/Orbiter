@@ -97,6 +97,7 @@ private:
     void checkSofaInstancesToFree();
     void checkForNewSofaToLoad();
     void checkForGUIParameterChanges();
+    float mapAndQuantize(float value, float inputMin, float inputMax, float outputMin, float outputMax, float outputDelta);
     
     float prevTheta;
     float prevPhi;
