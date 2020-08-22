@@ -153,6 +153,7 @@ void OrbiterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
     
+    buffer.applyGain(0, 0, buffer.getNumSamples(), 0.5);
     
     if (sofaFileLoaded)
     {
@@ -254,9 +255,7 @@ void OrbiterAudioProcessor::checkForGUIParameterChanges()
 
         
         if ((thetaMapped != prevTheta) || (phiMapped != prevPhi) || (radiusMapped != prevRadius))
-        {
-            std::cout << "Val: " << t << " Theta: " << thetaMapped << " Phi: " << phiMapped << " Radius: " << radiusMapped << "\n";
-            
+        {   
             auto *hrirLeft = retainedSofa->sofa.getHRIR(0, (int)thetaMapped, (int)phiMapped, radiusMapped);
             auto *hrirRight = retainedSofa->sofa.getHRIR(1, (int)thetaMapped, (int)phiMapped, radiusMapped);
             

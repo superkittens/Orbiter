@@ -6,7 +6,8 @@ A spatial audio plugin for DAWs.  This plugin accepts user-supplied HRIRs in the
 
 ## Supported DAWs
 * Ableton Live
-* Logic Pro X  
+* Logic Pro X
+* REAPER  
 
 **Currently using automation in Logic Pro X will not work.  A fix is in the works**  
 

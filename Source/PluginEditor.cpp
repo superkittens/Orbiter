@@ -15,12 +15,12 @@ OrbiterAudioProcessorEditor::OrbiterAudioProcessorEditor (OrbiterAudioProcessor&
 {
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
-    setSize (400, 150);
+    setSize (500, 300);
     
     hrtfThetaSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
     hrtfThetaSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, true, 50, 10);
     hrtfThetaSlider.setRange(0, 1);
-    addAndMakeVisible(hrtfThetaSlider);
+    addChildComponent(hrtfThetaSlider);
     
     hrtfPhiSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
     hrtfPhiSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, true, 50, 10);
@@ -30,7 +30,7 @@ OrbiterAudioProcessorEditor::OrbiterAudioProcessorEditor (OrbiterAudioProcessor&
     hrtfRadiusSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
     hrtfRadiusSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, true, 50, 10);
     hrtfRadiusSlider.setRange(0, 1);
-    addAndMakeVisible(hrtfRadiusSlider);
+    addChildComponent(hrtfRadiusSlider);
     
     sofaFileButton.setButtonText("Open SOFA");
     sofaFileButton.onClick = [this]{ openSofaButtonClicked(); };
@@ -41,6 +41,15 @@ OrbiterAudioProcessorEditor::OrbiterAudioProcessorEditor (OrbiterAudioProcessor&
     hrtfPhiAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_PHI_ID, hrtfPhiSlider);
     
     hrtfRadiusAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_RADIUS_ID, hrtfRadiusSlider);
+    
+    addAndMakeVisible(azimuthComp);
+    
+    prevAzimuthAngle = -1;
+    prevAzimuthRadius = -1;
+    prevParamAngle = -1;
+    prevParamRadius = -1;
+    
+    startTimerHz(30);
 }
 
 OrbiterAudioProcessorEditor::~OrbiterAudioProcessorEditor()
@@ -70,12 +79,15 @@ void OrbiterAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
     const int componentSize = 100;
-    
+
     hrtfThetaSlider.setBounds(bounds.withTrimmedTop(20).withSize(componentSize, componentSize));
     hrtfPhiSlider.setBounds(getLocalBounds().withTrimmedTop(20).withTrimmedLeft(100).withSize(componentSize, componentSize));
     hrtfRadiusSlider.setBounds(getLocalBounds().withTrimmedTop(20).withTrimmedLeft(200).withSize(componentSize, componentSize));
-    
+
     sofaFileButton.setBounds(getLocalBounds().withTrimmedTop(50).removeFromRight(85).withSize(70, 20));
+
+    auto radParam = audioProcessor.valueTreeState.getParameter(HRTF_RADIUS_ID);
+    radParam->setValue(0.5);
 }
 
 
@@ -98,3 +110,34 @@ void OrbiterAudioProcessorEditor::notifyNewSOFA(juce::String filePath)
     audioProcessor.newSofaFilePath.swapWith(filePath);
     audioProcessor.newSofaFileWaiting = true;
 }
+
+
+void OrbiterAudioProcessorEditor::timerCallback()
+{
+    auto sourceAngleAndRadius = azimuthComp.getNormalisedAngleAndRadius();
+    auto paramAngle = audioProcessor.valueTreeState.getParameter(HRTF_THETA_ID)->getValue();
+    auto paramRadius = audioProcessor.valueTreeState.getParameter(HRTF_RADIUS_ID)->getValue();
+    
+    if (paramAngle != prevParamAngle || paramRadius != prevParamRadius)
+    {
+        azimuthComp.updateSourcePosition(paramAngle, paramRadius);
+        
+        prevAzimuthRadius = paramRadius;
+        prevAzimuthAngle = paramAngle;
+        prevParamRadius = paramRadius;
+        prevParamAngle = paramAngle;
+    }
+    else if (sourceAngleAndRadius.first != prevAzimuthAngle || sourceAngleAndRadius.second != prevAzimuthRadius)
+    {
+        audioProcessor.valueTreeState.getParameter(HRTF_THETA_ID)->setValue(sourceAngleAndRadius.first);
+        audioProcessor.valueTreeState.getParameter(HRTF_RADIUS_ID)->setValue(sourceAngleAndRadius.second);
+        
+        prevAzimuthRadius = sourceAngleAndRadius.second;
+        prevAzimuthAngle = sourceAngleAndRadius.first;
+        prevParamRadius = sourceAngleAndRadius.second;
+        prevParamAngle = sourceAngleAndRadius.first;
+    }
+    else{}
+    
+}
+

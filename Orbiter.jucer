@@ -14,6 +14,10 @@
       <FILE id="zY3HoB" name="HRTFProcessor.h" compile="0" resource="0" file="Source/HRTFProcessor.h"/>
       <FILE id="BHnILB" name="HRTFProcessor.cpp" compile="1" resource="0"
             file="Source/HRTFProcessor.cpp"/>
+      <FILE id="E4sMWB" name="AzimuthUIComponent.cpp" compile="1" resource="0"
+            file="Source/AzimuthUIComponent.cpp"/>
+      <FILE id="kLZCJb" name="AzimuthUIComponent.h" compile="0" resource="0"
+            file="Source/AzimuthUIComponent.h"/>
     </GROUP>
   </MAINGROUP>
   <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_VST3_CAN_REPLACE_VST2="0"/>
