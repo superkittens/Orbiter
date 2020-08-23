@@ -36,6 +36,7 @@ private:
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.
     void timerCallback() override;
+    float floorValue(float value, float epsilon);
     
     juce::Slider hrtfThetaSlider;
     juce::Slider hrtfPhiSlider;
@@ -51,6 +52,7 @@ private:
     float prevAzimuthRadius;
     float prevParamAngle;
     float prevParamRadius;
+
     
     OrbiterAudioProcessor& audioProcessor;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrbiterAudioProcessorEditor)

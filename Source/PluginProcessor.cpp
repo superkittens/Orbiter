@@ -214,7 +214,7 @@ void OrbiterAudioProcessor::setStateInformation (const void* data, int sizeInByt
 juce::AudioProcessorValueTreeState::ParameterLayout OrbiterAudioProcessor::createParameters()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> parameters;
-    juce::NormalisableRange<float> parameterRange(0, 1, 0.0001);
+    juce::NormalisableRange<float> parameterRange(0, 1, 0.0000001);
     
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_THETA_ID, "Theta", parameterRange, 0));
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_PHI_ID, "Phi", parameterRange, 0));
@@ -255,7 +255,8 @@ void OrbiterAudioProcessor::checkForGUIParameterChanges()
 
         
         if ((thetaMapped != prevTheta) || (phiMapped != prevPhi) || (radiusMapped != prevRadius))
-        {   
+        {
+            std::cout << "Theta: " << thetaMapped << "\n";
             auto *hrirLeft = retainedSofa->sofa.getHRIR(0, (int)thetaMapped, (int)phiMapped, radiusMapped);
             auto *hrirRight = retainedSofa->sofa.getHRIR(1, (int)thetaMapped, (int)phiMapped, radiusMapped);
             
