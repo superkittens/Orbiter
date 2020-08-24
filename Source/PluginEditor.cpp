@@ -81,8 +81,8 @@ void OrbiterAudioProcessorEditor::paint (juce::Graphics& g)
     
     
     auto bounds = getLocalBounds();
-    g.drawFittedText("Elevation", bounds.withTrimmedLeft(315).withTrimmedTop(65).withSize(100, 10), juce::Justification::Flags::centred, 1);
-    g.drawFittedText("Input Gain", bounds.withTrimmedLeft(418).withTrimmedTop(65).withSize(100, 10), juce::Justification::Flags::centred, 1);
+    g.drawFittedText("Elevation", bounds.withTrimmedLeft(315).withTrimmedTop(55).withSize(100, 10), juce::Justification::Flags::centred, 1);
+    g.drawFittedText("Input Gain", bounds.withTrimmedLeft(418).withTrimmedTop(55).withSize(100, 10), juce::Justification::Flags::centred, 1);
     g.drawFittedText("Output Gain", bounds.withTrimmedLeft(418).withTrimmedTop(165).withSize(100, 10), juce::Justification::Flags::centred, 1);
     
 //    bounds = getLocalBounds();
@@ -98,7 +98,7 @@ void OrbiterAudioProcessorEditor::resized()
     hrtfPhiSlider.setBounds(getLocalBounds().withTrimmedTop(75).withTrimmedLeft(330).withSize(70, 170));
     inputGainSlider.setBounds(getLocalBounds().withTrimmedTop(70).withTrimmedLeft(430).withSize(75, 75));
     outputGainSlider.setBounds(getLocalBounds().withTrimmedTop(175).withTrimmedLeft(430).withSize(75, 75));
-    sofaFileButton.setBounds(getLocalBounds().withTrimmedTop(20).withTrimmedLeft(385).withSize(80, 20));
+    sofaFileButton.setBounds(getLocalBounds().withTrimmedTop(15).withTrimmedLeft(385).withSize(80, 20));
 }
 
 
