@@ -41,12 +41,16 @@ private:
     juce::Slider hrtfThetaSlider;
     juce::Slider hrtfPhiSlider;
     juce::Slider hrtfRadiusSlider;
+    juce::Slider inputGainSlider;
+    juce::Slider outputGainSlider;
     
     juce::TextButton sofaFileButton;
     
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> hrtfThetaAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> hrtfPhiAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> hrtfRadiusAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> inputGainAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> outputGainAttachment;
     
     float prevAzimuthAngle;
     float prevAzimuthRadius;

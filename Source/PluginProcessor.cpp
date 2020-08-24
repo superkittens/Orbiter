@@ -152,8 +152,7 @@ void OrbiterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
-    
-    buffer.applyGain(0, 0, buffer.getNumSamples(), 0.5);
+
     
     if (sofaFileLoaded)
     {
@@ -162,6 +161,11 @@ void OrbiterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         for (int channel = 0; channel < 1; ++channel)
         {
             auto *channelData = buffer.getWritePointer (channel);
+            
+            auto *inputGainParam = valueTreeState.getRawParameterValue(HRTF_INPUT_GAIN_ID);
+            float inputGain = *inputGainParam;
+            
+            buffer.applyGain(0, 0, buffer.getNumSamples(), inputGain);
             
             retainedSofa->leftHRTFProcessor.addSamples(channelData, buffer.getNumSamples());
             retainedSofa->rightHRTFProcessor.addSamples(channelData, buffer.getNumSamples());
@@ -179,6 +183,12 @@ void OrbiterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
                     outLeft[i] = left[i];
                     outRight[i] = right[i];
                 }
+                
+                auto *outputGainParam = valueTreeState.getRawParameterValue(HRTF_OUTPUT_GAIN_ID);
+                float outputGain = *outputGainParam;
+                
+                buffer.applyGain(0, 0, buffer.getNumSamples(), outputGain);
+                buffer.applyGain(1, 0, buffer.getNumSamples(), outputGain);
             }
 
         }
@@ -219,6 +229,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout OrbiterAudioProcessor::creat
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_THETA_ID, "Theta", parameterRange, 0));
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_PHI_ID, "Phi", parameterRange, 0));
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_RADIUS_ID, "Radius", parameterRange, 0));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_INPUT_GAIN_ID, "Input Gain", parameterRange, 1));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_OUTPUT_GAIN_ID, "Output Gain", 0, 10, 1));
     //parameters.push_back(std::make_unique<juce::AudioParameterBool>("ORBIT", "Enable Orbit", false));
     return {parameters.begin(), parameters.end()};
 }

@@ -20,5 +20,7 @@ Currently, no default SOFA file is provided by the plugin itself.  You will need
 
 To load a SOFA file, open the plugin GUI and click *Open SOFA* and select your desired file.  
 
-Oribiter only accepts SOFA files with measurements in spherical coordinates.  Theta is the source angle on the horizontal head plane while Phi is the elevation angle.  While Theta can range from 0 - 360 degrees and Phi ranges from -90 to 90 degrees, the sliders map the values 0 - 1 to the available angles defined in the SOFA file.  Radius controls the distance of the source from the listener.  
+Oribiter only accepts SOFA files with measurements in spherical coordinates.  Theta is the source angle on the horizontal head plane while Phi is the elevation angle.  While Theta can range from -179 to 180 degrees and Phi ranges from -90 to 90 degrees, the sliders map the values 0 - 1 to the available angles defined in the SOFA file.  Radius controls the distance of the source from the listener.  
+
+The left side of the GUI represents the location of the sound source.  Moving the orange circle around will change the source's theta and radius parameters.  The elevation vertical slider changes the elevation (phi).  The rotary sliders to the right control the input and output gain.  
 

@@ -15,6 +15,8 @@
 #define HRTF_THETA_ID "HRTF_THETA"
 #define HRTF_PHI_ID "HRTF_PHI"
 #define HRTF_RADIUS_ID "HRTF_RADIUS"
+#define HRTF_INPUT_GAIN_ID "HRTF_INPUT_GAIN"
+#define HRTF_OUTPUT_GAIN_ID "HRTF_OUTPUT_GAIN"
 
 //==============================================================================
 /**

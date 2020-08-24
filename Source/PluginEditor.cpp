@@ -15,22 +15,32 @@ OrbiterAudioProcessorEditor::OrbiterAudioProcessorEditor (OrbiterAudioProcessor&
 {
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
-    setSize (500, 300);
+    setSize (550, 300);
     
     hrtfThetaSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
     hrtfThetaSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, true, 50, 10);
     hrtfThetaSlider.setRange(0, 1);
     addChildComponent(hrtfThetaSlider);
     
-    hrtfPhiSlider.setSliderStyle(juce::Slider::SliderStyle::LinearVertical);
-    //hrtfPhiSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, true, 50, 10);
-    hrtfPhiSlider.setRange(0, 1);
-    addAndMakeVisible(hrtfPhiSlider);
-    
     hrtfRadiusSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
     hrtfRadiusSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, true, 50, 10);
     hrtfRadiusSlider.setRange(0, 1);
     addChildComponent(hrtfRadiusSlider);
+    
+    hrtfPhiSlider.setSliderStyle(juce::Slider::SliderStyle::LinearVertical);
+    hrtfPhiSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 100, 10);
+    hrtfPhiSlider.setRange(0, 1);
+    addAndMakeVisible(hrtfPhiSlider);
+    
+    inputGainSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
+    inputGainSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 100, 10);
+    inputGainSlider.setRange(0, 1);
+    addAndMakeVisible(inputGainSlider);
+    
+    outputGainSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
+    outputGainSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 100, 10);
+    outputGainSlider.setRange(0, 1);
+    addAndMakeVisible(outputGainSlider);
     
     sofaFileButton.setButtonText("Open SOFA");
     sofaFileButton.onClick = [this]{ openSofaButtonClicked(); };
@@ -41,6 +51,10 @@ OrbiterAudioProcessorEditor::OrbiterAudioProcessorEditor (OrbiterAudioProcessor&
     hrtfPhiAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_PHI_ID, hrtfPhiSlider);
     
     hrtfRadiusAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_RADIUS_ID, hrtfRadiusSlider);
+    
+    inputGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_INPUT_GAIN_ID, inputGainSlider);
+    
+    outputGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_OUTPUT_GAIN_ID, outputGainSlider);
     
     addAndMakeVisible(azimuthComp);
     
@@ -65,26 +79,26 @@ void OrbiterAudioProcessorEditor::paint (juce::Graphics& g)
     g.setColour (juce::Colours::white);
     g.setFont (15.0f);
     
-    auto bounds = getLocalBounds();
-//    g.drawFittedText("Theta", bounds.removeFromLeft(100).withTrimmedTop(10).withSize(100, 10), juce::Justification::Flags::centred, 1);
     
-    bounds = getLocalBounds();
-    g.drawFittedText("Elevation", bounds.withTrimmedLeft(295).withTrimmedTop(10).withSize(100, 10), juce::Justification::Flags::centred, 1);
+    auto bounds = getLocalBounds();
+    g.drawFittedText("Elevation", bounds.withTrimmedLeft(315).withTrimmedTop(65).withSize(100, 10), juce::Justification::Flags::centred, 1);
+    g.drawFittedText("Input Gain", bounds.withTrimmedLeft(418).withTrimmedTop(65).withSize(100, 10), juce::Justification::Flags::centred, 1);
+    g.drawFittedText("Output Gain", bounds.withTrimmedLeft(418).withTrimmedTop(165).withSize(100, 10), juce::Justification::Flags::centred, 1);
     
 //    bounds = getLocalBounds();
 //    g.drawFittedText("Radius",bounds.withTrimmedLeft(200).withTrimmedTop(10).withSize(100, 10), juce::Justification::Flags::centred, 1);
+    
+//    g.drawFittedText("Theta", bounds.removeFromLeft(100).withTrimmedTop(10).withSize(100, 10), juce::Justification::Flags::centred, 1);
 }
 
 void OrbiterAudioProcessorEditor::resized()
 {
-    auto bounds = getLocalBounds();
-    const int componentSize = 100;
-
     //hrtfThetaSlider.setBounds(bounds.withTrimmedTop(20).withTrimmedLeft(350).withSize(componentSize, componentSize));
-    hrtfPhiSlider.setBounds(getLocalBounds().withTrimmedTop(75).withTrimmedLeft(330).withSize(30, 150));
     //hrtfRadiusSlider.setBounds(getLocalBounds().withTrimmedTop(150).withTrimmedLeft(350).withSize(componentSize, componentSize));
-
-    sofaFileButton.setBounds(getLocalBounds().withTrimmedTop(50).removeFromRight(85).withSize(70, 20));
+    hrtfPhiSlider.setBounds(getLocalBounds().withTrimmedTop(75).withTrimmedLeft(330).withSize(70, 170));
+    inputGainSlider.setBounds(getLocalBounds().withTrimmedTop(70).withTrimmedLeft(430).withSize(75, 75));
+    outputGainSlider.setBounds(getLocalBounds().withTrimmedTop(175).withTrimmedLeft(430).withSize(75, 75));
+    sofaFileButton.setBounds(getLocalBounds().withTrimmedTop(20).withTrimmedLeft(385).withSize(80, 20));
 }
 
 
@@ -122,7 +136,6 @@ void OrbiterAudioProcessorEditor::timerCallback()
     
     if (paramAngleValue != prevParamAngle || paramRadiusValue != prevParamRadius)
     {
-        //std::cout << "Slider Angle: " << paramAngleValue << " Slider Rad: " << paramRadiusValue << "\n";
         azimuthComp.updateSourcePosition(paramAngleValue, paramRadiusValue);
         prevAzimuthRadius = paramRadiusValue;
         prevAzimuthAngle = paramAngleValue;
