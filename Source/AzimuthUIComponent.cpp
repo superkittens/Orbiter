@@ -1,13 +1,3 @@
-/*
-  ==============================================================================
-
-    AzimuthUIComponent.cpp
-    Created: 21 Aug 2020 3:22:11pm
-    Author:  Allen Lee
-
-  ==============================================================================
-*/
-
 #include <JuceHeader.h>
 #include "AzimuthUIComponent.h"
 
