@@ -79,6 +79,9 @@ bool HRTFProcessor::init(const double *hrir, size_t hrirSize, float samplingFreq
     auxHRTFBuffer = std::vector<std::complex<float>>(zeroPaddedBufferSize);
     std::fill(xBuffer.begin(), xBuffer.end(), std::complex<float>(0.0, 0.0));
     
+    reverbBuffer = std::vector<float>(zeroPaddedBufferSize);
+    std::fill(reverbBuffer.begin(), reverbBuffer.end(), 0.0);
+    
     outputSampleStart = 0;
     outputSampleEnd = 0;
     numSamplesAdded = 0;
@@ -86,6 +89,18 @@ bool HRTFProcessor::init(const double *hrir, size_t hrirSize, float samplingFreq
     inputSampleAddIndex = 0;
     numOutputSamplesAvailable = 0;
     
+    reverbBufferStartIndex = 0;
+    reverbBufferAddIndex = 0;
+    
+    reverb.setSampleRate(samplingFreq);
+    juce::Reverb::Parameters reverbParam;
+    
+    reverbParam.roomSize = 1.0f;
+    reverbParam.damping = 0.3f;
+    reverbParam.dryLevel = 0.2f;
+    reverbParam.wetLevel = 0.7f;
+    
+    reverb.setParameters(reverbParam);
     
     //  Create input window
     //  To satisfy the COLA constraint for a Hamming window, the last value should be 0
@@ -138,12 +153,18 @@ bool HRTFProcessor::addSamples(float *samples, size_t numSamples)
     
     for (auto i = 0; i < numSamples; ++i)
     {
+        //  Add samples into the input buffer and reverb buffer
         inputBuffer[inputSampleAddIndex] = samples[i];
+        reverbBuffer[reverbBufferAddIndex] = samples[i];
+        
         inputSampleAddIndex = (inputSampleAddIndex + 1) % inputBuffer.size();
+        reverbBufferAddIndex = (reverbBufferAddIndex + 1) % reverbBuffer.size();
+        
         numSamplesAdded++;
     }
     
     
+    //  Execute when we have added enough samples for processing
     if (numSamplesAdded >= audioBlockSize)
     {
         numSamplesAdded -= hopSize;
@@ -171,10 +192,14 @@ std::vector<float> HRTFProcessor::getOutput(size_t numSamples)
     if (numSamples > numOutputSamplesAvailable)
         return std::vector<float>(0);
     
+    //  Get reverberated input signal
+    reverb.processMono(reverbBuffer.data() + reverbBufferStartIndex, (int)numSamples);
+    
     for (auto i = 0; i < numSamples; ++i)
     {
-        out[i] = outputBuffer[outputSampleStart];
+        out[i] = outputBuffer[outputSampleStart] + (0.5 * reverbBuffer[reverbBufferStartIndex]);
         outputSampleStart = (outputSampleStart + 1) % outputBuffer.size();
+        reverbBufferStartIndex = (reverbBufferStartIndex + 1) % reverbBuffer.size();
     }
     
     numOutputSamplesAvailable -= numSamples;

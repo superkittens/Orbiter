@@ -111,6 +111,11 @@ void OrbiterAudioProcessor::changeProgramName (int index, const juce::String& ne
 void OrbiterAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     audioBlockSize = samplesPerBlock;
+    auto *inputGainParam = valueTreeState.getRawParameterValue(HRTF_INPUT_GAIN_ID);
+    auto *outputGainParam = valueTreeState.getRawParameterValue(HRTF_OUTPUT_GAIN_ID);
+    
+    prevInputGain = *inputGainParam;
+    prevOutputGain = *outputGainParam;
 }
 
 void OrbiterAudioProcessor::releaseResources()
@@ -165,7 +170,8 @@ void OrbiterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
             auto *inputGainParam = valueTreeState.getRawParameterValue(HRTF_INPUT_GAIN_ID);
             float inputGain = *inputGainParam;
             
-            buffer.applyGain(0, 0, buffer.getNumSamples(), inputGain);
+            buffer.applyGainRamp(0, 0, buffer.getNumSamples(), prevInputGain, inputGain);
+            prevInputGain = inputGain;
             
             retainedSofa->leftHRTFProcessor.addSamples(channelData, buffer.getNumSamples());
             retainedSofa->rightHRTFProcessor.addSamples(channelData, buffer.getNumSamples());
@@ -187,8 +193,9 @@ void OrbiterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
                 auto *outputGainParam = valueTreeState.getRawParameterValue(HRTF_OUTPUT_GAIN_ID);
                 float outputGain = *outputGainParam;
                 
-                buffer.applyGain(0, 0, buffer.getNumSamples(), outputGain);
-                buffer.applyGain(1, 0, buffer.getNumSamples(), outputGain);
+                buffer.applyGainRamp(0, 0, buffer.getNumSamples(), prevOutputGain, outputGain);
+                buffer.applyGainRamp(1, 0, buffer.getNumSamples(), prevOutputGain, outputGain);
+                prevOutputGain = outputGain;
             }
 
         }

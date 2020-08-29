@@ -49,6 +49,10 @@ protected:
     size_t                                          numSamplesAdded;
     size_t                                          hopSize;
     
+    std::vector<float>                              reverbBuffer;
+    size_t                                          reverbBufferStartIndex;
+    size_t                                          reverbBufferAddIndex;
+    
     std::vector<float>                              window;
     
     std::vector<float>                              shadowOLABuffer;
@@ -68,6 +72,8 @@ protected:
     std::vector<float>                              fadeOutEnvelope;
     
     std::unique_ptr<juce::dsp::FFT>                 fftEngine;
+    
+    juce::Reverb                                    reverb;
     
     juce::SpinLock                                  hrirChangingLock;
     juce::SpinLock                                  shadowOLACopyingLock;

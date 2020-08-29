@@ -70,6 +70,7 @@ public:
     
     juce::AudioProcessorValueTreeState valueTreeState;
     juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
+    
 
 private:
     //==============================================================================
@@ -107,6 +108,9 @@ private:
     bool hrtfParamChangeLoop;
     
     int audioBlockSize;
+    
+    float prevInputGain;
+    float prevOutputGain;
     
     static constexpr size_t MAX_HRIR_LENGTH = 15000;
 
