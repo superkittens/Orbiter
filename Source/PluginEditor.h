@@ -43,6 +43,11 @@ private:
     juce::Slider hrtfRadiusSlider;
     juce::Slider inputGainSlider;
     juce::Slider outputGainSlider;
+    juce::Slider reverbRoomSizeSlider;
+    juce::Slider reverbDampingSlider;
+    juce::Slider reverbWetLevelSlider;
+    juce::Slider reverbDryLevelSlider;
+    juce::Slider reverbWidthSlider;
     
     juce::TextButton sofaFileButton;
     
@@ -51,6 +56,11 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> hrtfRadiusAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> inputGainAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> outputGainAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> reverbRoomSizeAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> reverbDampingAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> reverbWetLevelAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> reverbDryLevelAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> reverbWidthAttachment;
     
     float prevAzimuthAngle;
     float prevAzimuthRadius;

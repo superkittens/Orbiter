@@ -15,7 +15,7 @@ OrbiterAudioProcessorEditor::OrbiterAudioProcessorEditor (OrbiterAudioProcessor&
 {
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
-    setSize (550, 300);
+    setSize (650, 300);
     
     hrtfThetaSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
     hrtfThetaSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, true, 50, 10);
@@ -42,6 +42,32 @@ OrbiterAudioProcessorEditor::OrbiterAudioProcessorEditor (OrbiterAudioProcessor&
     outputGainSlider.setRange(0, 1);
     addAndMakeVisible(outputGainSlider);
     
+    reverbRoomSizeSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
+    reverbRoomSizeSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 100, 10);
+    reverbRoomSizeSlider.setRange(0, 1);
+    addAndMakeVisible(reverbRoomSizeSlider);
+    
+    reverbDampingSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
+    reverbDampingSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 100, 10);
+    reverbDampingSlider.setRange(0, 1);
+    addAndMakeVisible(reverbDampingSlider);
+    
+    reverbWetLevelSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
+    reverbWetLevelSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 100, 10);
+    reverbWetLevelSlider.setRange(0, 1);
+    addAndMakeVisible(reverbWetLevelSlider);
+    
+    reverbDryLevelSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
+    reverbDryLevelSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 100, 10);
+    reverbDryLevelSlider.setRange(0, 1);
+    addAndMakeVisible(reverbDryLevelSlider);
+    
+    reverbWidthSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
+    reverbWidthSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 100, 10);
+    reverbWidthSlider.setRange(0, 1);
+    addAndMakeVisible(reverbWidthSlider);
+    
+    
     sofaFileButton.setButtonText("Open SOFA");
     sofaFileButton.onClick = [this]{ openSofaButtonClicked(); };
     addAndMakeVisible(sofaFileButton);
@@ -55,6 +81,17 @@ OrbiterAudioProcessorEditor::OrbiterAudioProcessorEditor (OrbiterAudioProcessor&
     inputGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_INPUT_GAIN_ID, inputGainSlider);
     
     outputGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_OUTPUT_GAIN_ID, outputGainSlider);
+    
+    reverbRoomSizeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_REVERB_ROOM_SIZE_ID, reverbRoomSizeSlider);
+    
+    reverbDampingAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_REVERB_DAMPING_ID, reverbDampingSlider);
+    
+    reverbWetLevelAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_REVERB_WET_LEVEL_ID, reverbWetLevelSlider);
+    
+    reverbDryLevelAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_REVERB_DRY_LEVEL_ID, reverbDryLevelSlider);
+    
+    reverbWidthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_REVERB_WIDTH_ID, reverbWidthSlider);
+    
     
     addAndMakeVisible(azimuthComp);
     
@@ -82,13 +119,13 @@ void OrbiterAudioProcessorEditor::paint (juce::Graphics& g)
     
     auto bounds = getLocalBounds();
     g.drawFittedText("Elevation", bounds.withTrimmedLeft(315).withTrimmedTop(55).withSize(100, 10), juce::Justification::Flags::centred, 1);
+    
+    //  Draw gain parameter text and borders
+    //juce::Rectangle<float> gainBorder(410, 55, 100, 150);
+    //g.drawRoundedRectangle(gainBorder, 10, 2);
     g.drawFittedText("Input Gain", bounds.withTrimmedLeft(418).withTrimmedTop(55).withSize(100, 10), juce::Justification::Flags::centred, 1);
     g.drawFittedText("Output Gain", bounds.withTrimmedLeft(418).withTrimmedTop(165).withSize(100, 10), juce::Justification::Flags::centred, 1);
     
-//    bounds = getLocalBounds();
-//    g.drawFittedText("Radius",bounds.withTrimmedLeft(200).withTrimmedTop(10).withSize(100, 10), juce::Justification::Flags::centred, 1);
-    
-//    g.drawFittedText("Theta", bounds.removeFromLeft(100).withTrimmedTop(10).withSize(100, 10), juce::Justification::Flags::centred, 1);
 }
 
 void OrbiterAudioProcessorEditor::resized()
@@ -99,6 +136,12 @@ void OrbiterAudioProcessorEditor::resized()
     inputGainSlider.setBounds(getLocalBounds().withTrimmedTop(70).withTrimmedLeft(430).withSize(75, 75));
     outputGainSlider.setBounds(getLocalBounds().withTrimmedTop(175).withTrimmedLeft(430).withSize(75, 75));
     sofaFileButton.setBounds(getLocalBounds().withTrimmedTop(15).withTrimmedLeft(385).withSize(80, 20));
+    
+    reverbRoomSizeSlider.setBounds(getLocalBounds().withTrimmedTop(70).withTrimmedLeft(530).withSize(50, 50));
+    reverbDampingSlider.setBounds(getLocalBounds().withTrimmedTop(70).withTrimmedLeft(590).withSize(50, 50));
+    reverbWetLevelSlider.setBounds(getLocalBounds().withTrimmedTop(130).withTrimmedLeft(530).withSize(50, 50));
+    reverbDryLevelSlider.setBounds(getLocalBounds().withTrimmedTop(130).withTrimmedLeft(590).withSize(50, 50));
+    reverbWidthSlider.setBounds(getLocalBounds().withTrimmedTop(190).withTrimmedLeft(555).withSize(50, 50));
 }
 
 

@@ -36,6 +36,13 @@ valueTreeState(*this, nullptr, "PARAMETERS", createParameters())
     
     audioBlockSize = 0;
     
+    valueTreeState.addParameterListener(HRTF_REVERB_ROOM_SIZE_ID, this);
+    valueTreeState.addParameterListener(HRTF_REVERB_DAMPING_ID, this);
+    valueTreeState.addParameterListener(HRTF_REVERB_WET_LEVEL_ID, this);
+    valueTreeState.addParameterListener(HRTF_REVERB_DRY_LEVEL_ID, this);
+    valueTreeState.addParameterListener(HRTF_REVERB_WIDTH_ID, this);
+    reverbParamsChanged.store(false);
+    
     startThread();
 }
 
@@ -238,6 +245,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout OrbiterAudioProcessor::creat
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_RADIUS_ID, "Radius", parameterRange, 0));
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_INPUT_GAIN_ID, "Input Gain", parameterRange, 1));
     parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_OUTPUT_GAIN_ID, "Output Gain", 0, 10, 1));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_REVERB_ROOM_SIZE_ID, "Room Size", 0, 1, 0.5));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_REVERB_DAMPING_ID, "Damping", 0, 1, 0.5));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_REVERB_WET_LEVEL_ID, "Wet Level", 0, 1, 0.5));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_REVERB_DRY_LEVEL_ID, "Dry Level", 0, 1, 0.5));
+    parameters.push_back(std::make_unique<juce::AudioParameterFloat>(HRTF_REVERB_WIDTH_ID, "Reverb Width", 0, 1, 0.5));
+    
     //parameters.push_back(std::make_unique<juce::AudioParameterBool>("ORBIT", "Enable Orbit", false));
     return {parameters.begin(), parameters.end()};
 }
@@ -249,6 +262,7 @@ void OrbiterAudioProcessor::run()
     {
         checkForNewSofaToLoad();
         checkForGUIParameterChanges();
+        checkForHRTFReverbParamChanges();
         juce::Thread::wait(10);
     }
 }
@@ -339,6 +353,22 @@ void OrbiterAudioProcessor::checkSofaInstancesToFree()
 }
 
 
+void OrbiterAudioProcessor::checkForHRTFReverbParamChanges()
+{
+    auto changeFlag = reverbParamsChanged.load();
+    if (changeFlag)
+    {
+        ReferenceCountedSOFA::Ptr retainedSOFA(currentSOFA);
+        if (retainedSOFA != nullptr)
+        {
+            retainedSOFA->leftHRTFProcessor.setReverbParameters(reverbParams);
+            retainedSOFA->rightHRTFProcessor.setReverbParameters(reverbParams);
+            reverbParamsChanged.store(false);
+        }
+    }
+}
+
+
 /*
  *  Map a value from one set to another
  *  This works similar to jmap except that the output is quantized in steps of outputDelta
@@ -358,6 +388,44 @@ float OrbiterAudioProcessor::mapAndQuantize(float value, float inputMin, float i
     
     return (deltaMultiplier * outputDelta) + outputMin;
 }
+
+
+void OrbiterAudioProcessor::parameterChanged(const juce::String &parameterID, float newValue)
+{  
+    if (parameterID == HRTF_REVERB_ROOM_SIZE_ID)
+    {
+        reverbParams.roomSize = newValue;
+        reverbParamsChanged.store(true);
+    }
+    
+    else if (parameterID == HRTF_REVERB_DAMPING_ID)
+    {
+        reverbParams.damping = newValue;
+        reverbParamsChanged.store(true);
+    }
+    
+    else if (parameterID == HRTF_REVERB_WET_LEVEL_ID)
+    {
+        reverbParams.wetLevel = newValue;
+        reverbParamsChanged.store(true);
+    }
+    
+    else if (parameterID == HRTF_REVERB_DRY_LEVEL_ID)
+    {
+        reverbParams.dryLevel = newValue;
+        reverbParamsChanged.store(true);
+    }
+    
+    else if (parameterID == HRTF_REVERB_WIDTH_ID)
+    {
+        reverbParams.width = newValue;
+        reverbParamsChanged.store(true);
+    }
+    
+    else{}
+}
+
+
 
 //==============================================================================
 // This creates new instances of the plugin..

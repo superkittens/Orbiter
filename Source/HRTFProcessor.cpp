@@ -95,10 +95,11 @@ bool HRTFProcessor::init(const double *hrir, size_t hrirSize, float samplingFreq
     reverb.setSampleRate(samplingFreq);
     juce::Reverb::Parameters reverbParam;
     
-    reverbParam.roomSize = 1.0f;
-    reverbParam.damping = 0.3f;
-    reverbParam.dryLevel = 0.2f;
-    reverbParam.wetLevel = 0.7f;
+    reverbParam.roomSize = 0.5f;
+    reverbParam.damping = 0.5f;
+    reverbParam.dryLevel = 0.5f;
+    reverbParam.wetLevel = 0.5f;
+    reverbParam.width = 0.5f;
     
     reverb.setParameters(reverbParam);
     
@@ -344,6 +345,13 @@ bool HRTFProcessor::copyOLABuffer(std::vector<float> &dest, size_t numSamplesToC
     std::copy(shadowOLABuffer.begin(), shadowOLABuffer.begin() + numSamplesToCopy, dest.begin());
     
     return true;
+}
+
+
+void HRTFProcessor::setReverbParameters(juce::Reverb::Parameters params)
+{
+    reverb.setParameters(params);
+    std::cout << "REVERB: " << reverb.getParameters().roomSize << "\n";
 }
 
 

@@ -17,11 +17,33 @@
 #define HRTF_RADIUS_ID "HRTF_RADIUS"
 #define HRTF_INPUT_GAIN_ID "HRTF_INPUT_GAIN"
 #define HRTF_OUTPUT_GAIN_ID "HRTF_OUTPUT_GAIN"
+#define HRTF_REVERB_ROOM_SIZE_ID "HRTF_REVERB_ROOM_SIZE"
+#define HRTF_REVERB_DAMPING_ID "HRTF_REVERB_DAMPING"
+#define HRTF_REVERB_WET_LEVEL_ID "HRTF_REVERB_WET_LEVEL"
+#define HRTF_REVERB_DRY_LEVEL_ID "HRTF_REVERB_DRY_LEVEL"
+#define HRTF_REVERB_WIDTH_ID "HRTF_REVERB_WIDTH"
+
+
+//  Define parameter IDs here
+enum
+{
+    HRTF_THETA = 0,
+    HRTF_PHI,
+    HRTF_RADIUS,
+    HRTF_INPUT_GAIN,
+    HRTF_OUTPUT_GAIN,
+    HRTF_REVERB_ROOM_SIZE,
+    HRTF_REVERB_DAMPING,
+    HRTF_REVERB_WET_LEVEL,
+    HRTF_REVERB_DRY_LEVEL,
+    HRTF_REVERB_WIDTH
+};
+
 
 //==============================================================================
 /**
 */
-class OrbiterAudioProcessor  : public juce::AudioProcessor, public juce::Thread
+class OrbiterAudioProcessor  : public juce::AudioProcessor, public juce::Thread, public juce::AudioProcessorValueTreeState::Listener
 {
 public:
     //==============================================================================
@@ -100,7 +122,11 @@ private:
     void checkSofaInstancesToFree();
     void checkForNewSofaToLoad();
     void checkForGUIParameterChanges();
+    void checkForHRTFReverbParamChanges();
+    
     float mapAndQuantize(float value, float inputMin, float inputMax, float outputMin, float outputMax, float outputDelta);
+    
+    void parameterChanged(const juce::String &parameterID, float newValue) override;
     
     float prevTheta;
     float prevPhi;
@@ -113,6 +139,9 @@ private:
     float prevOutputGain;
     
     static constexpr size_t MAX_HRIR_LENGTH = 15000;
+    
+    juce::Reverb::Parameters reverbParams;
+    std::atomic<bool> reverbParamsChanged;
 
     ReferenceCountedSOFA::Ptr currentSOFA;
     juce::ReferenceCountedArray<ReferenceCountedSOFA> sofaInstances;

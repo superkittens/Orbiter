@@ -22,6 +22,7 @@ public:
     void                flushBuffers();
     bool                copyOLABuffer(std::vector<float> &dest, size_t numSamplesToCopy);
     bool                isHRIRLoaded() { return hrirLoaded; }
+    void                setReverbParameters(juce::Reverb::Parameters params);
     
     bool                crossFaded;
     
