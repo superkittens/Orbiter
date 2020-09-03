@@ -351,7 +351,6 @@ bool HRTFProcessor::copyOLABuffer(std::vector<float> &dest, size_t numSamplesToC
 void HRTFProcessor::setReverbParameters(juce::Reverb::Parameters params)
 {
     reverb.setParameters(params);
-    std::cout << "REVERB: " << reverb.getParameters().roomSize << "\n";
 }
 
 

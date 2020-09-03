@@ -88,6 +88,7 @@ public:
     
     bool newSofaFileWaiting;
     bool sofaFileLoaded;
+    
     juce::String newSofaFilePath;
     
     juce::AudioProcessorValueTreeState valueTreeState;

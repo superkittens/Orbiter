@@ -126,6 +126,22 @@ void OrbiterAudioProcessorEditor::paint (juce::Graphics& g)
     g.drawFittedText("Input Gain", bounds.withTrimmedLeft(418).withTrimmedTop(55).withSize(100, 10), juce::Justification::Flags::centred, 1);
     g.drawFittedText("Output Gain", bounds.withTrimmedLeft(418).withTrimmedTop(165).withSize(100, 10), juce::Justification::Flags::centred, 1);
     
+    juce::String sofaStatus;
+    if (audioProcessor.sofaFileLoaded)
+    {
+        g.setColour(juce::Colours::green);
+        sofaStatus = "SOFA Loaded";
+    }
+    else
+    {
+        g.setColour(juce::Colours::red);
+        sofaStatus = "SOFA Not Loaded";
+    }
+    
+    g.drawFittedText(sofaStatus, getLocalBounds().withTrimmedTop(17).withTrimmedLeft(470).withSize(100, 10), juce::Justification::Flags::centred, 1);
+    
+    
+    
 }
 
 void OrbiterAudioProcessorEditor::resized()
@@ -168,6 +184,9 @@ void OrbiterAudioProcessorEditor::notifyNewSOFA(juce::String filePath)
 
 void OrbiterAudioProcessorEditor::timerCallback()
 {
+    if (audioProcessor.sofaFileLoaded)
+        repaint();
+    
     auto sourceAngleAndRadius = azimuthComp.getNormalisedAngleAndRadius();
     auto paramAngle = audioProcessor.valueTreeState.getRawParameterValue(HRTF_THETA_ID);
     auto paramRadius = audioProcessor.valueTreeState.getRawParameterValue(HRTF_RADIUS_ID);

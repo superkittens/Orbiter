@@ -289,7 +289,6 @@ void OrbiterAudioProcessor::checkForGUIParameterChanges()
         
         if ((thetaMapped != prevTheta) || (phiMapped != prevPhi) || (radiusMapped != prevRadius))
         {
-            std::cout << "Theta: " << thetaMapped << "\n";
             auto *hrirLeft = retainedSofa->sofa.getHRIR(0, (int)thetaMapped, (int)phiMapped, radiusMapped);
             auto *hrirRight = retainedSofa->sofa.getHRIR(1, (int)thetaMapped, (int)phiMapped, radiusMapped);
             
