@@ -11,11 +11,20 @@
 
 //==============================================================================
 OrbiterAudioProcessorEditor::OrbiterAudioProcessorEditor (OrbiterAudioProcessor& p)
-    : AudioProcessorEditor (&p), audioProcessor (p)
+    :   AudioProcessorEditor (&p),
+        inputGainSlider(gainSliderSize, "Input Gain"),
+        outputGainSlider(gainSliderSize, "Output Gain"),
+        reverbRoomSizeSlider(reverbSliderSize, "Room Size"),
+        reverbDampingSlider(reverbSliderSize, "Damping"),
+        reverbWetLevelSlider(reverbSliderSize, "Wet"),
+        reverbDryLevelSlider(reverbSliderSize, "Dry"),
+        reverbWidthSlider(reverbSliderSize, "Width"),
+        audioProcessor (p)
+
 {
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
-    setSize (650, 300);
+    setSize (900, 350);
     
     hrtfThetaSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
     hrtfThetaSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::TextBoxBelow, true, 50, 10);
@@ -32,39 +41,13 @@ OrbiterAudioProcessorEditor::OrbiterAudioProcessorEditor (OrbiterAudioProcessor&
     hrtfPhiSlider.setRange(0, 1);
     addAndMakeVisible(hrtfPhiSlider);
     
-    inputGainSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
-    inputGainSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 100, 10);
-    inputGainSlider.setRange(0, 1);
     addAndMakeVisible(inputGainSlider);
-    
-    outputGainSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
-    outputGainSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 100, 10);
-    outputGainSlider.setRange(0, 1);
     addAndMakeVisible(outputGainSlider);
     
-    reverbRoomSizeSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
-    reverbRoomSizeSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 100, 10);
-    reverbRoomSizeSlider.setRange(0, 1);
     addAndMakeVisible(reverbRoomSizeSlider);
-    
-    reverbDampingSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
-    reverbDampingSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 100, 10);
-    reverbDampingSlider.setRange(0, 1);
     addAndMakeVisible(reverbDampingSlider);
-    
-    reverbWetLevelSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
-    reverbWetLevelSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 100, 10);
-    reverbWetLevelSlider.setRange(0, 1);
     addAndMakeVisible(reverbWetLevelSlider);
-    
-    reverbDryLevelSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
-    reverbDryLevelSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 100, 10);
-    reverbDryLevelSlider.setRange(0, 1);
     addAndMakeVisible(reverbDryLevelSlider);
-    
-    reverbWidthSlider.setSliderStyle(juce::Slider::SliderStyle::Rotary);
-    reverbWidthSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 100, 10);
-    reverbWidthSlider.setRange(0, 1);
     addAndMakeVisible(reverbWidthSlider);
     
     
@@ -78,19 +61,19 @@ OrbiterAudioProcessorEditor::OrbiterAudioProcessorEditor (OrbiterAudioProcessor&
     
     hrtfRadiusAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_RADIUS_ID, hrtfRadiusSlider);
     
-    inputGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_INPUT_GAIN_ID, inputGainSlider);
+    inputGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_INPUT_GAIN_ID, inputGainSlider.slider);
     
-    outputGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_OUTPUT_GAIN_ID, outputGainSlider);
+    outputGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_OUTPUT_GAIN_ID, outputGainSlider.slider);
     
-    reverbRoomSizeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_REVERB_ROOM_SIZE_ID, reverbRoomSizeSlider);
+    reverbRoomSizeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_REVERB_ROOM_SIZE_ID, reverbRoomSizeSlider.slider);
     
-    reverbDampingAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_REVERB_DAMPING_ID, reverbDampingSlider);
+    reverbDampingAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_REVERB_DAMPING_ID, reverbDampingSlider.slider);
     
-    reverbWetLevelAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_REVERB_WET_LEVEL_ID, reverbWetLevelSlider);
+    reverbWetLevelAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_REVERB_WET_LEVEL_ID, reverbWetLevelSlider.slider);
     
-    reverbDryLevelAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_REVERB_DRY_LEVEL_ID, reverbDryLevelSlider);
+    reverbDryLevelAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_REVERB_DRY_LEVEL_ID, reverbDryLevelSlider.slider);
     
-    reverbWidthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_REVERB_WIDTH_ID, reverbWidthSlider);
+    reverbWidthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.valueTreeState, HRTF_REVERB_WIDTH_ID, reverbWidthSlider.slider);
     
     
     addAndMakeVisible(azimuthComp);
@@ -116,16 +99,28 @@ void OrbiterAudioProcessorEditor::paint (juce::Graphics& g)
     g.setColour (juce::Colours::white);
     g.setFont (15.0f);
     
-    
     auto bounds = getLocalBounds();
-    g.drawFittedText("Elevation", bounds.withTrimmedLeft(315).withTrimmedTop(55).withSize(100, 10), juce::Justification::Flags::centred, 1);
+    g.drawFittedText("Elevation", bounds.withTrimmedLeft(azimuthComp.getWidth() + azimuthXOffset).withTrimmedTop(paramCategoryTextOffset).withSize(gainSliderSize, sliderTextHeight), juce::Justification::Flags::centred, 1);
     
-    //  Draw gain parameter text and borders
-    //juce::Rectangle<float> gainBorder(410, 55, 100, 150);
-    //g.drawRoundedRectangle(gainBorder, 10, 2);
-    g.drawFittedText("Input Gain", bounds.withTrimmedLeft(418).withTrimmedTop(55).withSize(100, 10), juce::Justification::Flags::centred, 1);
-    g.drawFittedText("Output Gain", bounds.withTrimmedLeft(418).withTrimmedTop(165).withSize(100, 10), juce::Justification::Flags::centred, 1);
+    g.drawFittedText("Gain Params", bounds.withTrimmedLeft(gainSliderXOffset - (gainSliderSize / 2)).withTrimmedTop(paramCategoryTextOffset).withSize(gainSliderSize, sliderTextHeight), juce::Justification::Flags::centred, 1);
     
+    g.drawFittedText("Reverb Params", bounds.withTrimmedLeft(reverbSliderXOffset - 10).withTrimmedTop(paramCategoryTextOffset).withSize(100, sliderTextHeight), juce::Justification::Flags::centred, 1);
+    
+    
+    //  Draw gain parameters enclosing box
+    g.setColour(juce::Colours::grey);
+    
+    juce::Rectangle<float> gainEnclosingBox(gainSliderXOffset - (gainSliderEnclosingBoxWidth / 2), gainSliderEnclosingBoxYOffset, gainSliderEnclosingBoxWidth, gainSliderEnclosingBoxHeight);
+    g.fillRoundedRectangle(gainEnclosingBox, 10);
+    
+    //  Draw reverb parameters enclosing box
+    float enclosureBuffer = (reverbSliderEnclosingBoxWidth - (reverbSliderSeparation + reverbSliderSize)) / 2;
+    
+    juce::Rectangle<float> reverbEnclosingBox(reverbSliderXOffset - (reverbSliderSize / 2) - enclosureBuffer, reverbSliderEnclosingBoxYOffset, reverbSliderEnclosingBoxWidth, reverbSliderEnclosingBoxHeight);
+    g.fillRoundedRectangle(reverbEnclosingBox, 10);
+    
+    
+    //  Draw SOFA load status text
     juce::String sofaStatus;
     if (audioProcessor.sofaFileLoaded)
     {
@@ -137,8 +132,8 @@ void OrbiterAudioProcessorEditor::paint (juce::Graphics& g)
         g.setColour(juce::Colours::red);
         sofaStatus = "SOFA Not Loaded";
     }
-    
-    g.drawFittedText(sofaStatus, getLocalBounds().withTrimmedTop(17).withTrimmedLeft(470).withSize(100, 10), juce::Justification::Flags::centred, 1);
+
+    g.drawFittedText(sofaStatus, getLocalBounds().withTrimmedTop(sofaStatusYOffset).withTrimmedLeft(sofaStatusXOffset).withSize(sofaStatusWidth, sofaStatusHeight), juce::Justification::Flags::centred, 1);
     
     
     
@@ -146,18 +141,24 @@ void OrbiterAudioProcessorEditor::paint (juce::Graphics& g)
 
 void OrbiterAudioProcessorEditor::resized()
 {
-    //hrtfThetaSlider.setBounds(bounds.withTrimmedTop(20).withTrimmedLeft(350).withSize(componentSize, componentSize));
-    //hrtfRadiusSlider.setBounds(getLocalBounds().withTrimmedTop(150).withTrimmedLeft(350).withSize(componentSize, componentSize));
-    hrtfPhiSlider.setBounds(getLocalBounds().withTrimmedTop(75).withTrimmedLeft(330).withSize(70, 170));
-    inputGainSlider.setBounds(getLocalBounds().withTrimmedTop(70).withTrimmedLeft(430).withSize(75, 75));
-    outputGainSlider.setBounds(getLocalBounds().withTrimmedTop(175).withTrimmedLeft(430).withSize(75, 75));
-    sofaFileButton.setBounds(getLocalBounds().withTrimmedTop(15).withTrimmedLeft(385).withSize(80, 20));
+    //  Theta and Radius sliders for debugging purposes
+    hrtfThetaSlider.setBounds(getLocalBounds().withTrimmedTop(20).withTrimmedLeft(800).withSize(100, 100));
+    hrtfRadiusSlider.setBounds(getLocalBounds().withTrimmedTop(150).withTrimmedLeft(800).withSize(100, 100));
     
-    reverbRoomSizeSlider.setBounds(getLocalBounds().withTrimmedTop(70).withTrimmedLeft(530).withSize(50, 50));
-    reverbDampingSlider.setBounds(getLocalBounds().withTrimmedTop(70).withTrimmedLeft(590).withSize(50, 50));
-    reverbWetLevelSlider.setBounds(getLocalBounds().withTrimmedTop(130).withTrimmedLeft(530).withSize(50, 50));
-    reverbDryLevelSlider.setBounds(getLocalBounds().withTrimmedTop(130).withTrimmedLeft(590).withSize(50, 50));
-    reverbWidthSlider.setBounds(getLocalBounds().withTrimmedTop(190).withTrimmedLeft(555).withSize(50, 50));
+    azimuthComp.setCentrePosition((azimuthComp.getWidth() / 2) + azimuthXOffset, getHeight() / 2);
+    
+    inputGainSlider.setCentrePosition(gainSliderXOffset, gainSliderYOffset);
+    outputGainSlider.setCentrePosition(gainSliderXOffset, gainSliderYOffset + gainSliderEnclosingBoxHeight - gainSliderSize - 10);
+    
+    hrtfPhiSlider.setBounds(getLocalBounds().withTrimmedTop(elevationSliderYOffset).withTrimmedLeft(elevationSliderXOffset).withSize(50, 200));
+
+    sofaFileButton.setBounds(getLocalBounds().withTrimmedTop(sofaButtonYOffset).withTrimmedLeft(sofaButtonXOffset).withSize(sofaButtonWidth, sofaButtonHeight));
+    
+    reverbRoomSizeSlider.setCentrePosition(reverbSliderXOffset, reverbSliderYOffset);
+    reverbDampingSlider.setCentrePosition(reverbSliderXOffset + reverbSliderSeparation, reverbSliderYOffset);
+    reverbWetLevelSlider.setCentrePosition(reverbSliderXOffset, reverbSliderYOffset + reverbSliderSeparation);
+    reverbDryLevelSlider.setCentrePosition(reverbSliderXOffset + reverbSliderSeparation, reverbSliderYOffset + reverbSliderSeparation);
+    reverbWidthSlider.setCentrePosition(reverbSliderXOffset + (reverbSliderSeparation / 2), reverbSliderYOffset + (2 * reverbSliderSeparation));
 }
 
 
@@ -191,10 +192,10 @@ void OrbiterAudioProcessorEditor::timerCallback()
     auto paramAngle = audioProcessor.valueTreeState.getRawParameterValue(HRTF_THETA_ID);
     auto paramRadius = audioProcessor.valueTreeState.getRawParameterValue(HRTF_RADIUS_ID);
     
-    auto paramAngleValue = floorValue(*paramAngle, 0.0001);
-    auto paramRadiusValue = floorValue(*paramRadius, 0.0001);
-    auto uiAngleValue = floorValue(sourceAngleAndRadius.first, 0.0001);
-    auto uiRadiusValue = floorValue(sourceAngleAndRadius.second, 0.0001);
+    auto paramAngleValue = floorValue(*paramAngle, 0.00001);
+    auto paramRadiusValue = floorValue(*paramRadius, 0.00001);
+    auto uiAngleValue = floorValue(sourceAngleAndRadius.first, 0.00001);
+    auto uiRadiusValue = floorValue(sourceAngleAndRadius.second, 0.00001);
     
     if (paramAngleValue != prevParamAngle || paramRadiusValue != prevParamRadius)
     {

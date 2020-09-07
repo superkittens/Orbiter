@@ -322,12 +322,13 @@ void OrbiterAudioProcessor::checkForNewSofaToLoad()
                 bool leftHRTFSuccess = false;
                 bool rightHRTFSuccess = false;
                 
+                auto radiusMapped = mapAndQuantize(1, 0, 1, newSofa->sofa.getMinRadius(), newSofa->sofa.getMaxRadius(), newSofa->sofa.getDeltaRadius());
                 auto thetaMapped = mapAndQuantize(0.5, 0, 1, newSofa->sofa.getMinTheta(), newSofa->sofa.getMaxTheta(), newSofa->sofa.getDeltaTheta());
                 auto phiMapped = mapAndQuantize(0.5, 0, 1, newSofa->sofa.getMinPhi(), newSofa->sofa.getMaxPhi(), newSofa->sofa.getDeltaPhi());
-                auto radiusMapped = mapAndQuantize(0.5, 0, 1, newSofa->sofa.getMinRadius(), newSofa->sofa.getMaxRadius(), newSofa->sofa.getDeltaRadius());
                 
                 leftHRTFSuccess = newSofa->leftHRTFProcessor.init(newSofa->sofa.getHRIR(0, (int)thetaMapped, (int)phiMapped, radiusMapped), newSofa->hrirSize, newSofa->sofa.getFs(), audioBlockSize);
                 rightHRTFSuccess = newSofa->rightHRTFProcessor.init(newSofa->sofa.getHRIR(1, (int)thetaMapped, (int)phiMapped, radiusMapped), newSofa->hrirSize, newSofa->sofa.getFs(), audioBlockSize);
+                
                 
                 if (leftHRTFSuccess && rightHRTFSuccess)
                     currentSOFA = newSofa;

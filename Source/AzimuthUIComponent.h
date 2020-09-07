@@ -43,7 +43,7 @@ public:
         
         void mouseEnter(const juce::MouseEvent &e) override
         {
-            sourceColour = juce::Colours::green;
+            sourceColour = juce::Colours::lightgreen;
             repaint();
         }
         
@@ -81,6 +81,9 @@ private:
     
     
     std::pair<float, float> normalisedSourceAngleAndRadius;
+    float circleScaleValue;
+    float circleLineThickness;
+    float maxRadius;
     
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AzimuthUIComponent)
