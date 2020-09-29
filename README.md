@@ -2,7 +2,7 @@
 
 A spatial audio plugin for DAWs.  This plugin accepts user-supplied HRIRs in the form of SOFA (Spatially Oriented Format for Acoustics) files.  Only HRIRs, which are then converted into HRTFs, are accepted by the plugin.
 
-![Orbiter GUI](/readme_resources/Orbiter_GUI.png)
+![Orbiter GUI](/readme_resources/Orbiter_GUI_v0_1.png)
 
 ## Supported DAWs
 * Ableton Live
