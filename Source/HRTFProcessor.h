@@ -13,10 +13,10 @@ class HRTFProcessor
 public:
     
     HRTFProcessor();
-    HRTFProcessor(const double *hrir, size_t hrirSize, float samplingFreq, size_t audioBufferSize);
+    HRTFProcessor(const double *hrir, size_t hrirSize, float samplingFreq, size_t audioBufferSize, size_t numDelaySamples);
     
-    bool                init(const double *hrir, size_t hrirSize, float samplingFreq, size_t audioBufferSize);
-    bool                swapHRIR(const double *hrir, size_t hrirSize);
+    bool                init(const double *hrir, size_t hrirSize, float samplingFreq, size_t audioBufferSize, size_t numDelaySamples);
+    bool                swapHRIR(const double *hrir, size_t hrirSize, size_t numDelaySamples);
     bool                addSamples(float *samples, size_t numSamples);
     std::vector<float>  getOutput(size_t numSamples);
     void                flushBuffers();
@@ -29,12 +29,12 @@ public:
     
 protected:
     
-    bool                        setupHRTF(const double *hrir, size_t hrirSize);
+    bool                        setupHRTF(const double *hrir, size_t hrirSize, size_t numDelaySamples);
     const float*                calculateOutput(const std::vector<float> &x);
     bool                        overlapAndAdd();
     bool                        crossfadeWithNewHRTF(const std::vector<float> &x);
     unsigned int                calculateNextPowerOfTwo(float x);
-    bool                        removeImpulseDelay(std::vector<float> &hrir);
+    bool                        removeImpulseDelay(std::vector<float> &hrir, size_t numDelaySamples);
     std::pair<float, float>     getMeanAndStd(const std::vector<float> &x) const;
     
     

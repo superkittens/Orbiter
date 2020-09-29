@@ -294,8 +294,8 @@ void OrbiterAudioProcessor::checkForGUIParameterChanges()
             
             if ((hrirLeft != nullptr) && (hrirRight != nullptr))
             {
-                retainedSofa->leftHRTFProcessor.swapHRIR(hrirLeft, currentSOFA->hrirSize);
-                retainedSofa->rightHRTFProcessor.swapHRIR(hrirRight, currentSOFA->hrirSize);
+                retainedSofa->leftHRTFProcessor.swapHRIR(hrirLeft, currentSOFA->hrirSize, currentSOFA->sofa.getMinImpulseDelay() * 0.75);
+                retainedSofa->rightHRTFProcessor.swapHRIR(hrirRight, currentSOFA->hrirSize, currentSOFA->sofa.getMinImpulseDelay() * 0.75);
             }
             prevTheta = thetaMapped;
             prevPhi = phiMapped;
@@ -326,8 +326,8 @@ void OrbiterAudioProcessor::checkForNewSofaToLoad()
                 auto thetaMapped = mapAndQuantize(0.5, 0, 1, newSofa->sofa.getMinTheta(), newSofa->sofa.getMaxTheta(), newSofa->sofa.getDeltaTheta());
                 auto phiMapped = mapAndQuantize(0.5, 0, 1, newSofa->sofa.getMinPhi(), newSofa->sofa.getMaxPhi(), newSofa->sofa.getDeltaPhi());
                 
-                leftHRTFSuccess = newSofa->leftHRTFProcessor.init(newSofa->sofa.getHRIR(0, (int)thetaMapped, (int)phiMapped, radiusMapped), newSofa->hrirSize, newSofa->sofa.getFs(), audioBlockSize);
-                rightHRTFSuccess = newSofa->rightHRTFProcessor.init(newSofa->sofa.getHRIR(1, (int)thetaMapped, (int)phiMapped, radiusMapped), newSofa->hrirSize, newSofa->sofa.getFs(), audioBlockSize);
+                leftHRTFSuccess = newSofa->leftHRTFProcessor.init(newSofa->sofa.getHRIR(0, (int)thetaMapped, (int)phiMapped, radiusMapped), newSofa->hrirSize, newSofa->sofa.getFs(), audioBlockSize, newSofa->sofa.getMinImpulseDelay() * 0.75);
+                rightHRTFSuccess = newSofa->rightHRTFProcessor.init(newSofa->sofa.getHRIR(1, (int)thetaMapped, (int)phiMapped, radiusMapped), newSofa->hrirSize, newSofa->sofa.getFs(), audioBlockSize, newSofa->sofa.getMinImpulseDelay() * 0.75);
                 
                 
                 if (leftHRTFSuccess && rightHRTFSuccess)

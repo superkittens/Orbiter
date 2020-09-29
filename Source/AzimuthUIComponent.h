@@ -77,7 +77,7 @@ public:
 private:
     
     void componentMovedOrResized(Component &component, bool wasMoved, bool wasResized) override;
-    void calculateSourceAngleAndRadius();
+    std::pair<float, float> calculateSourceAngleAndRadius();
     
     
     std::pair<float, float> normalisedSourceAngleAndRadius;

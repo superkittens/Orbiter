@@ -2,7 +2,7 @@
 
 <JUCERPROJECT id="vxvmbX" name="Orbiter" projectType="audioplug" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" displaySplashScreen="1" headerPath="/usr/local/include"
-              companyName="meoWorkshop">
+              companyName="meoWorkshop" jucerFormatVersion="1">
   <MAINGROUP id="cakWNa" name="Orbiter">
     <GROUP id="{A9165FB6-CF2F-D9E9-0273-A9F7AAC2B9B9}" name="Source">
       <FILE id="kGojhw" name="PluginProcessor.cpp" compile="1" resource="0"

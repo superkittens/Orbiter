@@ -70,89 +70,51 @@ void AzimuthUIComponent::resized()
 /*
  *  Calculate the angle and readius of the source relative to the listener position
  */
-//std::pair<float, float> AzimuthUIComponent::calculateSourceAngleAndRadius()
-//{
-//    auto sourcePos = sourceComponent.getBounds().getCentre().toFloat();
-//
-//    auto sourceXPosRelative = sourcePos.getX() - (getWidth() / 2);
-//    auto sourceYPosRelative = sourcePos.getY() - (getHeight() / 2);
-//
-//    auto radius = sqrt((sourceXPosRelative * sourceXPosRelative) + (sourceYPosRelative * sourceYPosRelative));
-//    auto angle = (atan2(-sourceXPosRelative, -sourceYPosRelative) * 180 / juce::MathConstants<float>::pi);
-//
-//    std::cout << "Angle: " << angle << "\n";
-//
-//    auto radiusNormalised = juce::jmap<float>(radius, 0, getWidth() / 2, 0, 1);
-//    auto angleNormalised = juce::jmap<float>(angle, -179, 180, 0, 1);
-//
-//    normalisedSourceAngleAndRadius.first = angleNormalised;
-//    normalisedSourceAngleAndRadius.second = radiusNormalised;
-//
-//    return std::pair<float, float>(angle, radius);
-//}
-
-void AzimuthUIComponent::calculateSourceAngleAndRadius()
+std::pair<float, float> AzimuthUIComponent::calculateSourceAngleAndRadius()
 {
     auto sourcePos = sourceComponent.getBounds().getCentre().toFloat();
-    
+
     auto sourceXPosRelative = sourcePos.getX() - (getWidth() / 2);
     auto sourceYPosRelative = sourcePos.getY() - (getHeight() / 2);
-    
+
     auto radius = sqrt((sourceXPosRelative * sourceXPosRelative) + (sourceYPosRelative * sourceYPosRelative));
-    auto angle = (atan2(sourceXPosRelative, -sourceYPosRelative) * 180 / juce::MathConstants<float>::pi);
-    
+    auto angle = (atan2(-sourceXPosRelative, -sourceYPosRelative) * 180 / juce::MathConstants<float>::pi);
+
     auto radiusNormalised = juce::jmap<float>(radius, 0, getWidth() / 2, 0, 1);
     auto angleNormalised = juce::jmap<float>(angle, -179, 180, 0, 1);
-    
+
     normalisedSourceAngleAndRadius.first = angleNormalised;
     normalisedSourceAngleAndRadius.second = radiusNormalised;
+
+    return std::pair<float, float>(angle, radius);
 }
 
 
 void AzimuthUIComponent::componentMovedOrResized(Component &component, bool wasMoved, bool wasResized)
 {
-//    std::pair<float, float> angleAndRadius = calculateSourceAngleAndRadius();
+    std::pair<float, float> angleAndRadius = calculateSourceAngleAndRadius();
     
-//    if (angleAndRadius.second > maxRadius)
-//        angleAndRadius.second = maxRadius;
+    if (angleAndRadius.second > maxRadius)
+        angleAndRadius.second = maxRadius;
     
-//    auto radiusNormalised = juce::jmap<float>(angleAndRadius.second, 0, getWidth() / 2, 0, 1);
-//    auto angleNormalised = juce::jmap<float>(angleAndRadius.first, -179, 180, 0, 1);
-//
-//    normalisedSourceAngleAndRadius.first = angleNormalised;
-//    normalisedSourceAngleAndRadius.second = radiusNormalised;
-    
-//    updateSourcePosition(angleNormalised, radiusNormalised);
-    
-    calculateSourceAngleAndRadius();
+    auto radiusNormalised = juce::jmap<float>(angleAndRadius.second, 0, getWidth() / 2, 0, 1);
+    auto angleNormalised = juce::jmap<float>(angleAndRadius.first, -179, 180, 0, 1);
+
+    normalisedSourceAngleAndRadius.first = angleNormalised;
+    normalisedSourceAngleAndRadius.second = radiusNormalised;
 }
 
 
 void AzimuthUIComponent::updateSourcePosition(float normalisedAngle, float normalisedRadius)
 {
-//    auto angle = juce::jmap<float>(normalisedAngle, 0, 1, -179, 180);
-//    auto radius = juce::jmap<float>(normalisedRadius, 0, 1, 0, getWidth() / 2);
-//    
-//    angle = angle * juce::MathConstants<float>::pi / 180.f;
-//    
-//    //  Transform the vector to get it in terms of the window frame of reference
-////    int xPos = (getWidth() / 2) - (radius * sin(angle));
-////    int yPos = (getHeight() / 2) - (radius * cos(angle));
-//    
-//    int xPos = (getWidth() / 2) - (radius * cos(angle));
-//    int yPos = (getHeight() / 2) + (radius * sin(angle));
-//    
-//    sourceComponent.setCentrePosition(yPos, xPos);
-//    repaint();
-    
     auto angle = juce::jmap<float>(normalisedAngle, 0, 1, -179, 180);
     auto radius = juce::jmap<float>(normalisedRadius, 0, 1, 0, getWidth() / 2);
     
     angle = angle * juce::MathConstants<float>::pi / 180.f;
     
     //  Transform the vector to get it in terms of the window frame of reference
-    int xPos = (getWidth() / 2) - (radius * cos(angle));
-    int yPos = (getHeight() / 2) + (radius * sin(angle));
+    int xPos = (getWidth() / 2) - (radius * sin(angle));
+    int yPos = (getHeight() / 2) - (radius * cos(angle));
     
     sourceComponent.setCentrePosition(yPos, xPos);
     repaint();

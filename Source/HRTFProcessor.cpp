@@ -7,18 +7,18 @@ HRTFProcessor::HRTFProcessor()
     hrirLoaded = false;
 }
 
-HRTFProcessor::HRTFProcessor(const double *hrir, size_t hrirSize, float samplingFreq, size_t audioBufferSize)
+HRTFProcessor::HRTFProcessor(const double *hrir, size_t hrirSize, float samplingFreq, size_t audioBufferSize, size_t numDelaySamples)
 {
     olaWriteIndex = 0;
     hrirChanged = false;
     hrirLoaded = false;
     
-    if (!init(hrir, hrirSize, fs, audioBufferSize))
+    if (!init(hrir, hrirSize, fs, audioBufferSize, numDelaySamples))
         hrirLoaded = false;
 }
 
 
-bool HRTFProcessor::init(const double *hrir, size_t hrirSize, float samplingFreq, size_t audioBufferSize)
+bool HRTFProcessor::init(const double *hrir, size_t hrirSize, float samplingFreq, size_t audioBufferSize, size_t numDelaySamples)
 {
     if (hrirLoaded)
         return false;
@@ -106,12 +106,11 @@ bool HRTFProcessor::init(const double *hrir, size_t hrirSize, float samplingFreq
     //  Create input window
     //  To satisfy the COLA constraint for a Hamming window, the last value should be 0
     window = std::vector<float>(audioBlockSize);
-    juce::dsp::WindowingFunction<float>::fillWindowingTables(window.data(), audioBlockSize, juce::dsp::WindowingFunction<float>::WindowingMethod::hamming);
-    window[audioBlockSize - 1] = 0.0;
+    juce::dsp::WindowingFunction<float>::fillWindowingTables(window.data(), audioBlockSize, juce::dsp::WindowingFunction<float>::WindowingMethod::triangular);
     
     
     //  Transform HRIR into HRTF
-    if (!setupHRTF(hrir, hrirSize))
+    if (!setupHRTF(hrir, hrirSize, numDelaySamples))
         return false;
     
     for (auto i = 0; i < audioBlockSize; ++i)
@@ -126,12 +125,12 @@ bool HRTFProcessor::init(const double *hrir, size_t hrirSize, float samplingFreq
 }
 
 
-bool HRTFProcessor::swapHRIR(const double *hrir, size_t hrirSize)
+bool HRTFProcessor::swapHRIR(const double *hrir, size_t hrirSize, size_t numDelaySamples)
 {
     if (!hrirLoaded || hrirSize <= 0)
         return false;
     
-    bool success = setupHRTF(hrir, hrirSize);
+    bool success = setupHRTF(hrir, hrirSize, numDelaySamples);
     if (!success)
         return false;
     
@@ -183,7 +182,6 @@ bool HRTFProcessor::addSamples(float *samples, size_t numSamples)
     }
     
     return true;
-    
 }
 
 
@@ -198,7 +196,7 @@ std::vector<float> HRTFProcessor::getOutput(size_t numSamples)
     
     for (auto i = 0; i < numSamples; ++i)
     {
-        out[i] = outputBuffer[outputSampleStart] + (0.5 * reverbBuffer[reverbBufferStartIndex]);
+        out[i] = outputBuffer[outputSampleStart] + (0.5f * reverbBuffer[reverbBufferStartIndex]);
         outputSampleStart = (outputSampleStart + 1) % outputBuffer.size();
         reverbBufferStartIndex = (reverbBufferStartIndex + 1) % reverbBuffer.size();
     }
@@ -290,7 +288,7 @@ const float* HRTFProcessor::calculateOutput(const std::vector<float> &x)
 
 
 //  Convert an HRIR into an HRTF and queue the new HRTF for swapping which is done in calculateOutput()
-bool HRTFProcessor::setupHRTF(const double *hrir, size_t hrirSize)
+bool HRTFProcessor::setupHRTF(const double *hrir, size_t hrirSize, size_t numDelaySamples)
 {
     if (hrirSize == 0 || hrirSize > zeroPaddedBufferSize)
         return false;
@@ -307,8 +305,11 @@ bool HRTFProcessor::setupHRTF(const double *hrir, size_t hrirSize)
     for (auto i = 0; i < hrirSize; ++i)
         hrirVec[i] = hrir[i];
     
-    if (!removeImpulseDelay(hrirVec))
-        return false;
+    if (numDelaySamples != 0)
+    {
+        if (!removeImpulseDelay(hrirVec, numDelaySamples))
+            return false;
+    }
     
     for (auto i = 0; i < hrirSize; ++i)
     {
@@ -422,27 +423,12 @@ unsigned int HRTFProcessor::calculateNextPowerOfTwo(float x)
  *
  *  The starting point is determined by finding the first point where the impulse has a value >= abs(mean) + std dev
  */
-bool HRTFProcessor::removeImpulseDelay(std::vector<float> &hrir)
+bool HRTFProcessor::removeImpulseDelay(std::vector<float> &hrir, size_t numDelaySamples)
 {
     if (hrir.size() == 0) return false;
     
-    auto stats = getMeanAndStd(hrir);
-    auto threshold = abs(stats.first) + stats.second;
-    size_t impulseStart = 0;
-    
-    if (threshold < 0) return false;
-    
-    for (auto i = 0; i < hrir.size(); ++i)
-    {
-        if (abs(hrir[i]) >= threshold)
-        {
-            impulseStart = i;
-            break;
-        }
-    }
-    
-    std::copy(hrir.begin() + impulseStart, hrir.end(), hrir.begin());
-    std::fill(hrir.end() - impulseStart, hrir.end(), 0.0);
+    std::copy(hrir.begin() + numDelaySamples, hrir.end(), hrir.begin());
+    std::fill(hrir.end() - numDelaySamples, hrir.end(), 0.0);
     
     return true;
 }
